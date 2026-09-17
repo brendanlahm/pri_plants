@@ -7,7 +7,7 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
+import { Pressable, useColorScheme, useWindowDimensions, View, StyleSheet } from 'react-native';
 
 import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
@@ -22,6 +22,9 @@ export default function AppTabs() {
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="home" href="/" asChild>
+            <TabButton>Welcome</TabButton>
+          </TabTrigger>
+          <TabTrigger name="plants" href="/plants" asChild>
             <TabButton>Plants</TabButton>
           </TabTrigger>
           <TabTrigger name="explore" href="/explore" asChild>
@@ -50,13 +53,20 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 export function CustomTabList(props: TabListProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  // Four tabs plus the brand overflow a phone-width viewport, so the brand steps aside.
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 560;
 
   return (
     <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Starter
-        </ThemedText>
+      <ThemedView
+        type="backgroundElement"
+        style={[styles.innerContainer, isNarrow && styles.innerContainerNarrow]}>
+        {isNarrow ? null : (
+          <ThemedText type="smallBold" style={styles.brandText}>
+            Expo Starter
+          </ThemedText>
+        )}
 
         {props.children}
 
@@ -94,6 +104,11 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     maxWidth: MaxContentWidth,
   },
+  innerContainerNarrow: {
+    paddingHorizontal: Spacing.two,
+    justifyContent: 'space-between',
+    gap: Spacing.one,
+  },
   brandText: {
     marginRight: 'auto',
   },
@@ -110,6 +125,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: Spacing.one,
-    marginLeft: Spacing.three,
+    marginLeft: 'auto',
   },
 });
