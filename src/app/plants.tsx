@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Spacing.three,
     paddingBottom: BottomTabInset + Spacing.four,
-    gap: Spacing.two,
+    gap: Spacing.three,
   },
   header: {
     gap: Spacing.two,

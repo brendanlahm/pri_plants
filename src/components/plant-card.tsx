@@ -131,7 +131,7 @@ export function PlantCard({
             <ThemedView type="backgroundSelected" style={[styles.photo, styles.photoPlaceholder]}>
               <SymbolView
                 name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
-                size={16}
+                size={22}
                 tintColor={theme.textSecondary}
               />
             </ThemedView>
@@ -271,9 +271,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   photo: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 60,
+    height: 60,
+    // Square, with the corners softened to match the cards and chips around it.
+    borderRadius: Spacing.two,
   },
   photoPlaceholder: {
     alignItems: 'center',
