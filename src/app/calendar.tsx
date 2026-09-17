@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Platform, StyleSheet, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ALL_CARE_VISIBLE, type CareVisibility } from '@/components/care-filter-toggles';
@@ -16,6 +16,7 @@ import {
   CARE_KINDS,
   CARE_LABELS,
   careEventsByDate,
+  defaultAnchors,
   fromDayNumber,
   plantsWithoutSchedule,
   toDateKey,
@@ -23,7 +24,9 @@ import {
   type CareEvent,
   type CareKind,
 } from '@/lib/care-schedule';
-import { loadReminderSettings, saveReminderSettings } from '@/lib/plant-storage';
+import { confirm } from '@/lib/confirm';
+import type { PlantLibrary } from '@/lib/plant-library';
+import { saveLibrary, loadReminderSettings, saveReminderSettings } from '@/lib/plant-storage';
 import { buildReminders, DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from '@/lib/reminder-plan';
 import {
   getReminderPermission,
@@ -63,7 +66,7 @@ const VIEW_OPTIONS: PillOption<ViewMode>[] = [
 export default function CalendarScreen() {
   const theme = useTheme();
   const [today] = useState(() => new Date());
-  const { library, isLoading } = useCareLibrary();
+  const { library, setLibrary, isLoading } = useCareLibrary();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -102,6 +105,33 @@ export default function CalendarScreen() {
   }, [isLoading, library]);
 
   const { plants, careAnchors } = library;
+
+  /**
+   * The anchors are the schedule: without them there is nothing to count from,
+   * so clearing them empties the calendar. Reminders are switched off with it,
+   * since they are generated from the same dates.
+   */
+  async function setSchedule(anchors: PlantLibrary['careAnchors']) {
+    const next: PlantLibrary = { ...library, careAnchors: anchors };
+    setLibrary(next);
+    await saveLibrary(next);
+
+    if (anchors) return;
+    await syncScheduledReminders([]);
+    const off = { ...reminders, enabled: false };
+    setReminders(off);
+    setScheduled({ count: 0, next: null });
+    await saveReminderSettings(off);
+  }
+
+  async function clearSchedule() {
+    const ok = await confirm(
+      'Empty the calendar?',
+      'The calendar stops showing dates and reminders are switched off. Your plants are untouched, and you can start it again any time.',
+      'Empty'
+    );
+    if (ok) await setSchedule(null);
+  }
 
   /**
    * Events are only computed for the month on screen, so moving the selected day
@@ -172,7 +202,20 @@ export default function CalendarScreen() {
 
   const header = (
     <View style={styles.header}>
-      <ThemedText type="subtitle">Calendar</ThemedText>
+      <View style={styles.titleRow}>
+        <ThemedText type="subtitle">Calendar</ThemedText>
+        {careAnchors && plants.length > 0 ? (
+          <Pressable
+            onPress={clearSchedule}
+            accessibilityRole="button"
+            style={({ pressed }) => pressed && styles.pressed}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Empty
+            </ThemedText>
+          </Pressable>
+        ) : null}
+      </View>
+
       {careAnchors ? (
         <ThemedText type="small" themeColor="textSecondary">
           Watered {careAnchors.wateredAt}, fertilized {careAnchors.fertilizedAt}. Everything after
@@ -180,7 +223,28 @@ export default function CalendarScreen() {
         </ThemedText>
       ) : null}
 
-      {plants.length > 0 ? (
+      {!careAnchors && plants.length > 0 ? (
+        <ThemedView type="backgroundElement" style={styles.note}>
+          <ThemedText type="small">
+            The calendar is empty. Start it again and every plant counts as watered today and
+            fertilized a month ago, with dates worked out from there.
+          </ThemedText>
+          <Pressable
+            onPress={() => setSchedule(defaultAnchors())}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.startButton,
+              { backgroundColor: theme.accent },
+              pressed && styles.pressed,
+            ]}>
+            <ThemedText themeColor="accentText" style={styles.startLabel}>
+              Start the schedule
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
+      ) : null}
+
+      {plants.length > 0 && careAnchors ? (
         <>
           <PillGroup options={VIEW_OPTIONS} value={viewMode} onChange={setViewMode} />
 
@@ -322,6 +386,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.one,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  startButton: {
+    minHeight: 44,
+    borderRadius: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.two,
+  },
+  startLabel: {
+    fontWeight: 600,
   },
   header: {
     gap: Spacing.two,

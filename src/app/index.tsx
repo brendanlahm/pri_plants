@@ -19,8 +19,8 @@ export default function WelcomeScreen() {
     return byDate.get(toDateKey(today)) ?? [];
   }, [library, today]);
 
-  // Nothing imported yet, so the photo is left to speak for itself.
-  const showToday = !isLoading && library.plants.length > 0;
+  // Nothing imported, or no schedule running: the photo speaks for itself.
+  const showToday = !isLoading && library.plants.length > 0 && Boolean(library.careAnchors);
 
   return (
     <View style={styles.container}>

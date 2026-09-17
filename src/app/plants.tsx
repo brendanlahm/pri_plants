@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ImportButton } from '@/components/import-button';
@@ -10,8 +10,10 @@ import { PlantCard } from '@/components/plant-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useCareLibrary } from '@/hooks/use-care-library';
 import { useTheme } from '@/hooks/use-theme';
 import { defaultAnchors } from '@/lib/care-schedule';
+import { confirm } from '@/lib/confirm';
 import { buildReminders } from '@/lib/reminder-plan';
 import { getReminderPermission, syncScheduledReminders } from '@/lib/reminders';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
@@ -30,23 +32,10 @@ import {
   type SortMode,
 } from '@/lib/plant-library';
 import type { Plant } from '@/lib/plants';
-import { loadLibrary, loadReminderSettings, saveLibrary } from '@/lib/plant-storage';
+import { loadReminderSettings, saveLibrary } from '@/lib/plant-storage';
 
 /** The columns the importer understands, shown on the empty state. */
 const EXPECTED_COLUMNS = 'Name · Species · Location · Watering · Light · Acquired · Notes';
-
-function confirm(title: string, message: string, confirmLabel: string) {
-  if (Platform.OS === 'web') {
-    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  }
-  // react-native-web's Alert is a no-op, hence the window.confirm branch above.
-  return new Promise<boolean>((resolve) => {
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: confirmLabel, style: 'destructive', onPress: () => resolve(true) },
-    ]);
-  });
-}
 
 function confirmClear() {
   return confirm(
@@ -68,8 +57,7 @@ function confirmReplace(handAdded: number) {
 
 export default function PlantsScreen() {
   const theme = useTheme();
-  const [library, setLibrary] = useState<PlantLibrary>(emptyLibrary);
-  const [isLoading, setIsLoading] = useState(true);
+  const { library, setLibrary, isLoading } = useCareLibrary();
   const [isImporting, setIsImporting] = useState(false);
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT);
@@ -77,19 +65,6 @@ export default function PlantsScreen() {
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<Plant | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    loadLibrary().then((stored) => {
-      if (active) {
-        setLibrary(stored);
-        setIsLoading(false);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const visiblePlants = useMemo(() => {
     const byLight = filterByLight(library.plants, lightFilter === 'all' ? null : lightFilter);
