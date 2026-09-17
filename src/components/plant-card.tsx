@@ -28,13 +28,22 @@ function detailRows(plant: Plant) {
   ].filter((entry): entry is [string, string] => Boolean(entry[1]));
 }
 
-export function PlantCard({ plant }: { plant: Plant }) {
+type PlantCardProps = {
+  plant: Plant;
+  /** Label of a row to always show on the collapsed card, e.g. the column being sorted on. */
+  preferredDetail?: string;
+};
+
+export function PlantCard({ plant, preferredDetail }: PlantCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const theme = useTheme();
 
   const details = detailRows(plant);
-  const chips = summaryChips(details);
-  const preview = chips.length === 0 ? details[0] : undefined;
+  const pinned = preferredDetail
+    ? details.find(([label]) => label === preferredDetail)
+    : undefined;
+  const chips = pinned ? [] : summaryChips(details);
+  const preview = pinned ?? (chips.length === 0 ? details[0] : undefined);
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>

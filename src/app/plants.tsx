@@ -4,12 +4,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ImportButton } from '@/components/import-button';
 import { PlantCard } from '@/components/plant-card';
+import { SortControl } from '@/components/sort-control';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { defaultAnchors } from '@/lib/care-schedule';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
-import { emptyLibrary, filterPlants, type PlantLibrary } from '@/lib/plant-library';
+import {
+  emptyLibrary,
+  filterPlants,
+  sortPlants,
+  type PlantLibrary,
+  type SortMode,
+} from '@/lib/plant-library';
 import { loadLibrary, saveLibrary } from '@/lib/plant-storage';
 
 /** The columns the importer understands, shown on the empty state. */
@@ -34,6 +42,7 @@ export default function PlantsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [query, setQuery] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('sheet');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,8 +59,8 @@ export default function PlantsScreen() {
   }, []);
 
   const visiblePlants = useMemo(
-    () => filterPlants(library.plants, query),
-    [library.plants, query]
+    () => sortPlants(filterPlants(library.plants, query), sortMode),
+    [library.plants, query, sortMode]
   );
 
   async function handleImport() {
@@ -70,9 +79,12 @@ export default function PlantsScreen() {
       plants: result.plants,
       fileName: result.fileName,
       importedAt: new Date().toISOString(),
+      // A fresh sheet restarts the calendar from today.
+      careAnchors: defaultAnchors(),
     };
     setLibrary(imported);
     setQuery('');
+    setSortMode('sheet');
     await saveLibrary(imported);
   }
 
@@ -81,6 +93,7 @@ export default function PlantsScreen() {
     const cleared = emptyLibrary();
     setLibrary(cleared);
     setQuery('');
+    setSortMode('sheet');
     setError(null);
     await saveLibrary(cleared);
   }
@@ -123,18 +136,21 @@ export default function PlantsScreen() {
       ) : null}
 
       {hasPlants ? (
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search plants"
-          placeholderTextColor={theme.textSecondary}
-          autoCorrect={false}
-          clearButtonMode="while-editing"
-          style={[
-            styles.search,
-            { backgroundColor: theme.backgroundElement, color: theme.text },
-          ]}
-        />
+        <>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search plants"
+            placeholderTextColor={theme.textSecondary}
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+            style={[
+              styles.search,
+              { backgroundColor: theme.backgroundElement, color: theme.text },
+            ]}
+          />
+          <SortControl value={sortMode} onChange={setSortMode} />
+        </>
       ) : null}
     </View>
   );
@@ -169,7 +185,9 @@ export default function PlantsScreen() {
         <FlatList
           data={visiblePlants}
           keyExtractor={(plant) => plant.id}
-          renderItem={({ item }) => <PlantCard plant={item} />}
+          renderItem={({ item }) => (
+            <PlantCard plant={item} preferredDetail={sortMode === 'sheet' ? undefined : 'Watering'} />
+          )}
           ListHeaderComponent={header}
           ListEmptyComponent={empty}
           contentContainerStyle={styles.listContent}

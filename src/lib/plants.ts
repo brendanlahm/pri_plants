@@ -8,6 +8,7 @@ export type Plant = {
   species?: string;
   location?: string;
   watering?: string;
+  fertilizing?: string;
   light?: string;
   acquired?: string;
   notes?: string;
@@ -32,10 +33,24 @@ const FIELD_ALIASES = {
   ],
   light: ['light', 'sunlight', 'sun', 'lightlevel', 'exposure'],
   acquired: ['acquired', 'dateacquired', 'acquiredon', 'purchased', 'datepurchased', 'added', 'date'],
+  fertilizing: [
+    'fertilizing',
+    'fertilising',
+    'fertilization',
+    'fertilisation',
+    'fertilizer',
+    'fertiliser',
+    'fertilizationfrequency',
+    'fertilisationfrequency',
+    'fertilizerfrequency',
+    'feeding',
+    'feedingfrequency',
+    'feed',
+  ],
   notes: ['notes', 'note', 'comments', 'description', 'remarks'],
 } satisfies Record<string, readonly string[]>;
 
-type FieldName = keyof typeof FIELD_ALIASES;
+export type FieldName = keyof typeof FIELD_ALIASES;
 
 const FIELD_NAMES = Object.keys(FIELD_ALIASES) as FieldName[];
 
@@ -131,4 +146,21 @@ export function parsePlantSpreadsheet(input: { base64: string } | { data: ArrayB
     throw new PlantImportError("That file couldn't be read as a spreadsheet.");
   }
   return plantsFromWorkbook(workbook);
+}
+
+/**
+ * Reads a field off a plant, falling back to an unrecognised column whose header
+ * matches. Libraries imported before a column was recognised keep that value in
+ * `extra`, and re-importing the spreadsheet should not be a prerequisite for
+ * features that read it.
+ */
+export function plantField(plant: Plant, field: FieldName): string | undefined {
+  const direct = plant[field];
+  if (direct) return direct;
+
+  const aliases: readonly string[] = FIELD_ALIASES[field];
+  for (const [header, value] of Object.entries(plant.extra)) {
+    if (value && aliases.includes(normalizeHeader(header))) return value;
+  }
+  return undefined;
 }

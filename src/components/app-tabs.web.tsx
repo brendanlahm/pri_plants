@@ -15,6 +15,13 @@ import { ThemedView } from './themed-view';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 
+/** Below this the tab row cannot hold the brand, four tabs and the docs link. */
+const NARROW_WIDTH = 560;
+
+function useIsNarrow() {
+  return useWindowDimensions().width < NARROW_WIDTH;
+}
+
 export default function AppTabs() {
   return (
     <Tabs>
@@ -27,6 +34,9 @@ export default function AppTabs() {
           <TabTrigger name="plants" href="/plants" asChild>
             <TabButton>Plants</TabButton>
           </TabTrigger>
+          <TabTrigger name="calendar" href="/calendar" asChild>
+            <TabButton>Calendar</TabButton>
+          </TabTrigger>
           <TabTrigger name="explore" href="/explore" asChild>
             <TabButton>Explore</TabButton>
           </TabTrigger>
@@ -37,11 +47,13 @@ export default function AppTabs() {
 }
 
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+  const isNarrow = useIsNarrow();
+
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
+        style={[styles.tabButtonView, isNarrow && styles.tabButtonViewNarrow]}>
         <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
           {children}
         </ThemedText>
@@ -53,9 +65,8 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 export function CustomTabList(props: TabListProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-  // Four tabs plus the brand overflow a phone-width viewport, so the brand steps aside.
-  const { width } = useWindowDimensions();
-  const isNarrow = width < 560;
+  // The brand and the docs link step aside so the tabs themselves always fit.
+  const isNarrow = useIsNarrow();
 
   return (
     <View {...props} style={styles.tabListContainer}>
@@ -70,16 +81,18 @@ export function CustomTabList(props: TabListProps) {
 
         {props.children}
 
-        <ExternalLink href="https://docs.expo.dev" asChild>
-          <Pressable style={styles.externalPressable}>
-            <ThemedText type="link">Docs</ThemedText>
-            <SymbolView
-              tintColor={colors.text}
-              name={{ ios: 'arrow.up.right.square', web: 'link' }}
-              size={12}
-            />
-          </Pressable>
-        </ExternalLink>
+        {isNarrow ? null : (
+          <ExternalLink href="https://docs.expo.dev" asChild>
+            <Pressable style={styles.externalPressable}>
+              <ThemedText type="link">Docs</ThemedText>
+              <SymbolView
+                tintColor={colors.text}
+                name={{ ios: 'arrow.up.right.square', web: 'link' }}
+                size={12}
+              />
+            </Pressable>
+          </ExternalLink>
+        )}
       </ThemedView>
     </View>
   );
@@ -119,6 +132,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
+  },
+  tabButtonViewNarrow: {
+    paddingHorizontal: Spacing.two,
   },
   externalPressable: {
     flexDirection: 'row',

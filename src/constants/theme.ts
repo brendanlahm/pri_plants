@@ -16,6 +16,8 @@ export const Colors = {
     textSecondary: '#60646C',
     accent: '#2F7D55',
     accentText: '#FFFFFF',
+    water: '#1F6FEB',
+    fertilize: '#A96612',
   },
   dark: {
     text: '#ffffff',
@@ -25,6 +27,8 @@ export const Colors = {
     textSecondary: '#B0B4BA',
     accent: '#3FA96B',
     accentText: '#0B1A12',
+    water: '#63A0FF',
+    fertilize: '#E0A44B',
   },
 } as const;
 
