@@ -37,6 +37,7 @@ type PlantCardProps = {
   preferredDetail?: string;
   onPickPhoto: (plant: Plant) => void;
   onRemovePhoto: (plant: Plant) => void;
+  onEdit: (plant: Plant) => void;
 };
 
 export function PlantCard({
@@ -44,6 +45,7 @@ export function PlantCard({
   preferredDetail,
   onPickPhoto,
   onRemovePhoto,
+  onEdit,
 }: PlantCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const theme = useTheme();
@@ -145,10 +147,19 @@ export function PlantCard({
 
           <View style={styles.photoActions}>
             <Pressable
+              onPress={() => onEdit(plant)}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${plant.name}`}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedText type="small" style={{ color: theme.accent }}>
+                Edit
+              </ThemedText>
+            </Pressable>
+            <Pressable
               onPress={() => onPickPhoto(plant)}
               accessibilityRole="button"
               style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedText type="small" style={{ color: theme.accent }}>
+              <ThemedText type="small" themeColor="textSecondary">
                 {plant.photo ? 'Change photo' : 'Add photo'}
               </ThemedText>
             </Pressable>

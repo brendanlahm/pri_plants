@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ImportButton } from '@/components/import-button';
 import { AddPlantModal } from '@/components/add-plant-modal';
+import { EditPlantModal } from '@/components/edit-plant-modal';
 import { LightFilterControl, type LightFilter } from '@/components/light-filter';
 import { PlantCard } from '@/components/plant-card';
 import { SortControl } from '@/components/sort-control';
@@ -16,6 +17,7 @@ import { buildReminders } from '@/lib/reminder-plan';
 import { getReminderPermission, syncScheduledReminders } from '@/lib/reminders';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
 import { filterByLight, lightHeaderIn } from '@/lib/light';
+import { applyEdits } from '@/lib/plant-fields';
 import { pickPlantPhoto } from '@/lib/pick-photo';
 import { deleteAllPhotos, deletePhoto, savePhoto } from '@/lib/photo-storage';
 import {
@@ -73,6 +75,7 @@ export default function PlantsScreen() {
   const [sortMode, setSortMode] = useState<SortMode>('sheet');
   const [lightFilter, setLightFilter] = useState<LightFilter>('all');
   const [isAdding, setIsAdding] = useState(false);
+  const [editing, setEditing] = useState<Plant | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,6 +166,11 @@ export default function PlantsScreen() {
     setError(null);
     const stored = await savePhoto(result.asset, plant.id);
     await updatePlant(plant.id, (current) => ({ ...current, photo: stored }));
+  }
+
+  async function handleEdit(plant: Plant, values: Record<string, string>) {
+    setEditing(null);
+    await updatePlant(plant.id, (current) => applyEdits(current, values));
   }
 
   async function handleRemovePhoto(plant: Plant) {
@@ -290,6 +298,7 @@ export default function PlantsScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <EditPlantModal plant={editing} onCancel={() => setEditing(null)} onSave={handleEdit} />
       <AddPlantModal
         visible={isAdding}
         lightLabel={lightHeaderIn(library.plants) ?? 'Light'}
@@ -306,6 +315,7 @@ export default function PlantsScreen() {
               preferredDetail={sortMode === 'sheet' ? undefined : 'Watering'}
               onPickPhoto={handlePickPhoto}
               onRemovePhoto={handleRemovePhoto}
+              onEdit={setEditing}
             />
           )}
           ListHeaderComponent={header}
