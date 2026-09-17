@@ -6,10 +6,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
 
+import { FormField } from '@/components/form-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -67,13 +67,8 @@ export function AddPlantModal({ visible, lightLabel, onCancel, onSave }: AddPlan
     setDraft(EMPTY);
   }
 
-  function field(key: keyof PlantDraft) {
-    return {
-      value: draft[key],
-      onChangeText: (value: string) => setDraft((current) => ({ ...current, [key]: value })),
-      placeholderTextColor: theme.textSecondary,
-      style: [styles.input, { backgroundColor: theme.backgroundElement, color: theme.text }],
-    };
+  function change(key: keyof PlantDraft) {
+    return (value: string) => setDraft((current) => ({ ...current, [key]: value }));
   }
 
   return (
@@ -85,34 +80,34 @@ export function AddPlantModal({ visible, lightLabel, onCancel, onSave }: AddPlan
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <ThemedText type="subtitle">Add a plant</ThemedText>
 
-            <View style={styles.field}>
-              <ThemedText type="smallBold">Name</ThemedText>
-              <TextInput {...field('name')} placeholder="Monstera" autoFocus />
-            </View>
-
-            <View style={styles.field}>
-              <ThemedText type="smallBold">Watering frequency</ThemedText>
-              <TextInput {...field('watering')} placeholder="Every 2 weeks" />
-              <ThemedText type="small" themeColor="textSecondary">
-                {scheduleHint(draft.watering)}
-              </ThemedText>
-            </View>
-
-            <View style={styles.field}>
-              <ThemedText type="smallBold">Fertilization frequency</ThemedText>
-              <TextInput {...field('fertilizing')} placeholder="Monthly, spring-summer" />
-              <ThemedText type="small" themeColor="textSecondary">
-                {scheduleHint(draft.fertilizing)}
-              </ThemedText>
-            </View>
-
-            <View style={styles.field}>
-              <ThemedText type="smallBold">{lightLabel}</ThemedText>
-              <TextInput {...field('light')} placeholder="Bright indirect light" />
-              <ThemedText type="small" themeColor="textSecondary">
-                {lightHint(draft.light)}
-              </ThemedText>
-            </View>
+            <FormField
+              label="Name"
+              value={draft.name}
+              placeholder="Monstera"
+              autoFocus
+              onChangeText={change('name')}
+            />
+            <FormField
+              label="Watering frequency"
+              value={draft.watering}
+              placeholder="Every 2 weeks"
+              hint={scheduleHint(draft.watering)}
+              onChangeText={change('watering')}
+            />
+            <FormField
+              label="Fertilization frequency"
+              value={draft.fertilizing}
+              placeholder="Monthly, spring-summer"
+              hint={scheduleHint(draft.fertilizing)}
+              onChangeText={change('fertilizing')}
+            />
+            <FormField
+              label={lightLabel}
+              value={draft.light}
+              placeholder="Bright indirect light"
+              hint={lightHint(draft.light)}
+              onChangeText={change('light')}
+            />
 
             <View style={styles.actions}>
               <Pressable
@@ -160,15 +155,6 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.four,
     gap: Spacing.three,
-  },
-  field: {
-    gap: Spacing.one,
-  },
-  input: {
-    minHeight: 44,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    fontSize: 16,
   },
   actions: {
     flexDirection: 'row',
