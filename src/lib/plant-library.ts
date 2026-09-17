@@ -52,22 +52,30 @@ export function filterPlants(plants: Plant[], query: string) {
   );
 }
 
-/** How the list is ordered. `sheet` keeps the spreadsheet's own row order. */
-export type SortMode = 'sheet' | 'wateringOften' | 'wateringRarely';
+/** How the list is ordered. */
+export type SortMode = 'alphabetical' | 'wateringOften' | 'wateringRarely';
+
+export const DEFAULT_SORT: SortMode = 'alphabetical';
 
 export const SORT_LABELS: Record<SortMode, string> = {
-  sheet: 'Sheet order',
+  alphabetical: 'A\u2013Z',
   wateringOften: 'Watered often',
   wateringRarely: 'Watered rarely',
 };
 
 /**
  * Orders the list without mutating it. Plants whose watering column says nothing
- * readable keep their sheet order at the end, rather than being scattered through
- * a list they cannot meaningfully take part in.
+ * readable sit at the end in their original order, rather than being scattered
+ * through a list they cannot meaningfully take part in.
  */
 export function sortPlants(plants: Plant[], mode: SortMode): Plant[] {
-  if (mode === 'sheet') return plants;
+  if (mode === 'alphabetical') {
+    // `base` sensitivity so "boston fern" and "Boston fern" sort together rather
+    // than all the capitalised names landing in a block of their own.
+    return [...plants].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    );
+  }
 
   const sheetOrder = new Map(plants.map((plant, index) => [plant.id, index]));
   const intervals = new Map(plants.map((plant) => [plant.id, careIntervalDays(plant.watering)]));

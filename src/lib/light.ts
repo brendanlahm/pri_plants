@@ -11,6 +11,16 @@ export const LIGHT_LABELS: Record<LightLevel, string> = {
   low: 'Low light',
 };
 
+/** `all` is the unfiltered state; the rest are the light levels. */
+export type LightFilter = 'all' | LightLevel;
+
+export const LIGHT_FILTERS: LightFilter[] = ['all', ...LIGHT_LEVELS];
+
+export const LIGHT_FILTER_LABELS: Record<LightFilter, string> = {
+  all: 'Any light',
+  ...LIGHT_LABELS,
+};
+
 /**
  * Phrases that rule light out rather than in. "Bright indirect light, no direct
  * sun" would otherwise read as full sun, which is the opposite of what it says,

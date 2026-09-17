@@ -5,9 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ImportButton } from '@/components/import-button';
 import { AddPlantModal } from '@/components/add-plant-modal';
 import { EditPlantModal } from '@/components/edit-plant-modal';
-import { LightFilterControl, type LightFilter } from '@/components/light-filter';
+import { ListOptions } from '@/components/list-options';
 import { PlantCard } from '@/components/plant-card';
-import { SortControl } from '@/components/sort-control';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -16,7 +15,7 @@ import { defaultAnchors } from '@/lib/care-schedule';
 import { buildReminders } from '@/lib/reminder-plan';
 import { getReminderPermission, syncScheduledReminders } from '@/lib/reminders';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
-import { filterByLight, lightHeaderIn } from '@/lib/light';
+import { filterByLight, lightHeaderIn, type LightFilter } from '@/lib/light';
 import { applyEdits } from '@/lib/plant-fields';
 import { pickPlantPhoto } from '@/lib/pick-photo';
 import { deleteAllPhotos, deletePhoto, savePhoto } from '@/lib/photo-storage';
@@ -25,6 +24,7 @@ import {
   filterPlants,
   plantFromDraft,
   sortPlants,
+  DEFAULT_SORT,
   type PlantDraft,
   type PlantLibrary,
   type SortMode,
@@ -72,7 +72,7 @@ export default function PlantsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [query, setQuery] = useState('');
-  const [sortMode, setSortMode] = useState<SortMode>('sheet');
+  const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT);
   const [lightFilter, setLightFilter] = useState<LightFilter>('all');
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<Plant | null>(null);
@@ -134,7 +134,7 @@ export default function PlantsScreen() {
     };
     setLibrary(imported);
     setQuery('');
-    setSortMode('sheet');
+    setSortMode(DEFAULT_SORT);
     setLightFilter('all');
     await deleteAllPhotos();
     await saveLibrary(imported);
@@ -197,7 +197,7 @@ export default function PlantsScreen() {
     const cleared = emptyLibrary();
     setLibrary(cleared);
     setQuery('');
-    setSortMode('sheet');
+    setSortMode(DEFAULT_SORT);
     setLightFilter('all');
     setError(null);
     await deleteAllPhotos();
@@ -264,8 +264,13 @@ export default function PlantsScreen() {
               { backgroundColor: theme.backgroundElement, color: theme.text },
             ]}
           />
-          <LightFilterControl value={lightFilter} onChange={setLightFilter} />
-          <SortControl value={sortMode} onChange={setSortMode} />
+          <ListOptions
+            sort={sortMode}
+            light={lightFilter}
+            lightLabel={lightHeaderIn(library.plants) ?? 'Light'}
+            onSortChange={setSortMode}
+            onLightChange={setLightFilter}
+          />
         </>
       ) : null}
     </View>
@@ -312,7 +317,7 @@ export default function PlantsScreen() {
           renderItem={({ item }) => (
             <PlantCard
               plant={item}
-              preferredDetail={sortMode === 'sheet' ? undefined : 'Watering'}
+              preferredDetail={sortMode === 'alphabetical' ? undefined : 'Watering'}
               onPickPhoto={handlePickPhoto}
               onRemovePhoto={handleRemovePhoto}
               onEdit={setEditing}
