@@ -65,3 +65,19 @@ export function filterByLight(plants: Plant[], level: LightLevel | null): Plant[
   if (!level) return plants;
   return plants.filter((plant) => plantLightLevels(plant).includes(level));
 }
+
+/**
+ * The heading an existing list uses for light, when it keeps it in an
+ * unrecognised column. `null` means the list uses the canonical `light` field,
+ * or has nothing to go on.
+ */
+export function lightHeaderIn(plants: Plant[]): string | null {
+  for (const plant of plants) {
+    if (plant.light) return null;
+    const entry = Object.entries(plant.extra).find(
+      ([, value]) => lightLevelsFromText(value).length > 0
+    );
+    if (entry) return entry[0];
+  }
+  return null;
+}

@@ -3,6 +3,7 @@ import { Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ImportButton } from '@/components/import-button';
+import { AddPlantModal } from '@/components/add-plant-modal';
 import { LightFilterControl, type LightFilter } from '@/components/light-filter';
 import { PlantCard } from '@/components/plant-card';
 import { SortControl } from '@/components/sort-control';
@@ -14,11 +15,13 @@ import { defaultAnchors } from '@/lib/care-schedule';
 import { buildReminders } from '@/lib/reminder-plan';
 import { getReminderPermission, syncScheduledReminders } from '@/lib/reminders';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
-import { filterByLight } from '@/lib/light';
+import { filterByLight, lightHeaderIn } from '@/lib/light';
 import {
   emptyLibrary,
   filterPlants,
+  plantFromDraft,
   sortPlants,
+  type PlantDraft,
   type PlantLibrary,
   type SortMode,
 } from '@/lib/plant-library';
@@ -27,17 +30,35 @@ import { loadLibrary, loadReminderSettings, saveLibrary } from '@/lib/plant-stor
 /** The columns the importer understands, shown on the empty state. */
 const EXPECTED_COLUMNS = 'Name · Species · Location · Watering · Light · Acquired · Notes';
 
-function confirmClear() {
+function confirm(title: string, message: string, confirmLabel: string) {
   if (Platform.OS === 'web') {
-    return Promise.resolve(window.confirm('Remove the imported plants?'));
+    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
   }
   // react-native-web's Alert is a no-op, hence the window.confirm branch above.
   return new Promise<boolean>((resolve) => {
-    Alert.alert('Remove plants?', 'This clears the imported list. Your spreadsheet is untouched.', [
+    Alert.alert(title, message, [
       { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Remove', style: 'destructive', onPress: () => resolve(true) },
+      { text: confirmLabel, style: 'destructive', onPress: () => resolve(true) },
     ]);
   });
+}
+
+function confirmClear() {
+  return confirm(
+    'Remove plants?',
+    'This clears the list. Your spreadsheet is untouched.',
+    'Remove'
+  );
+}
+
+function confirmReplace(handAdded: number) {
+  return confirm(
+    'Replace the list?',
+    `Importing replaces everything, including ${handAdded} ${
+      handAdded === 1 ? 'plant you added' : 'plants you added'
+    } by hand.`,
+    'Replace'
+  );
 }
 
 export default function PlantsScreen() {
@@ -48,6 +69,7 @@ export default function PlantsScreen() {
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('sheet');
   const [lightFilter, setLightFilter] = useState<LightFilter>('all');
+  const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,6 +104,10 @@ export default function PlantsScreen() {
   }
 
   async function handleImport() {
+    // Importing replaces the list, so hand-typed plants would vanish without warning.
+    const handAdded = library.plants.filter((plant) => plant.addedByHand).length;
+    if (handAdded > 0 && !(await confirmReplace(handAdded))) return;
+
     setIsImporting(true);
     setError(null);
     const result = await importPlantsFromSpreadsheet();
@@ -108,6 +134,20 @@ export default function PlantsScreen() {
     await rescheduleReminders(imported);
   }
 
+  async function handleAdd(draft: PlantDraft) {
+    setIsAdding(false);
+    const next: PlantLibrary = {
+      ...library,
+      plants: [...library.plants, plantFromDraft(library.plants, draft)],
+      // The first plant on an otherwise empty list starts the calendar off.
+      careAnchors: library.careAnchors ?? defaultAnchors(),
+    };
+    setLibrary(next);
+    setError(null);
+    await saveLibrary(next);
+    await rescheduleReminders(next);
+  }
+
   async function handleClear() {
     if (!(await confirmClear())) return;
     const cleared = emptyLibrary();
@@ -126,16 +166,31 @@ export default function PlantsScreen() {
     <View style={styles.header}>
       <View style={styles.titleRow}>
         <ThemedText type="subtitle">Plants</ThemedText>
-        {hasPlants ? (
+        <View style={styles.titleActions}>
+          {hasPlants ? (
+            <Pressable
+              onPress={handleClear}
+              accessibilityRole="button"
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Clear
+              </ThemedText>
+            </Pressable>
+          ) : null}
           <Pressable
-            onPress={handleClear}
+            onPress={() => setIsAdding(true)}
             accessibilityRole="button"
-            style={({ pressed }) => pressed && styles.pressed}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Clear
+            accessibilityLabel="Add a plant"
+            style={({ pressed }) => [
+              styles.addButton,
+              { backgroundColor: theme.accent },
+              pressed && styles.pressed,
+            ]}>
+            <ThemedText themeColor="accentText" style={styles.addLabel}>
+              +
             </ThemedText>
           </Pressable>
-        ) : null}
+        </View>
       </View>
 
       {hasPlants ? (
@@ -197,7 +252,7 @@ export default function PlantsScreen() {
           </ThemedText>
           <ThemedText type="code">{EXPECTED_COLUMNS}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Any other column is kept and shown when you tap a plant.
+            Any other column is kept and shown when you tap a plant. Or use + to add one by hand.
           </ThemedText>
         </>
       )}
@@ -206,6 +261,12 @@ export default function PlantsScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <AddPlantModal
+        visible={isAdding}
+        lightLabel={lightHeaderIn(library.plants) ?? 'Light'}
+        onCancel={() => setIsAdding(false)}
+        onSave={handleAdd}
+      />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <FlatList
           data={visiblePlants}
@@ -252,6 +313,23 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  titleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  addButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addLabel: {
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: 600,
   },
   search: {
     minHeight: 44,

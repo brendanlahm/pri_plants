@@ -1,4 +1,5 @@
-import type { Plant } from '@/lib/plants';
+import { lightHeaderIn } from '@/lib/light';
+import { headerMatchesField, type Plant } from '@/lib/plants';
 import { careIntervalDays } from '@/lib/care-interval';
 import type { CareAnchors } from '@/lib/care-schedule';
 
@@ -83,4 +84,51 @@ export function sortPlants(plants: Plant[], mode: SortMode): Plant[] {
     }
     return sheetOrder.get(a.id)! - sheetOrder.get(b.id)!;
   });
+}
+
+/** The four things the add form asks for. */
+export type PlantDraft = {
+  name: string;
+  watering: string;
+  fertilizing: string;
+  light: string;
+};
+
+/**
+ * The heading an existing list uses for a field it keeps in an unrecognised
+ * column, so an added plant reads the same as the imported ones rather than
+ * sprouting a second label for the same thing.
+ */
+function existingHeaderFor(plants: Plant[], field: 'fertilizing' | 'light') {
+  if (field === 'light') return lightHeaderIn(plants);
+  for (const plant of plants) {
+    if (plant[field]) return null;
+    const header = Object.keys(plant.extra).find((key) => headerMatchesField(key, field));
+    if (header) return header;
+  }
+  return null;
+}
+
+/** Builds a plant from the add form, matching however the rest of the list is shaped. */
+export function plantFromDraft(existing: Plant[], draft: PlantDraft): Plant {
+  const plant: Plant = {
+    // Hand-added ids must not collide with the row-derived ids of imported plants.
+    id: `hand-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: draft.name.trim(),
+    extra: {},
+    addedByHand: true,
+  };
+
+  const watering = draft.watering.trim();
+  if (watering) plant.watering = watering;
+
+  for (const field of ['fertilizing', 'light'] as const) {
+    const value = draft[field].trim();
+    if (!value) continue;
+    const header = existingHeaderFor(existing, field);
+    if (header) plant.extra[header] = value;
+    else plant[field] = value;
+  }
+
+  return plant;
 }

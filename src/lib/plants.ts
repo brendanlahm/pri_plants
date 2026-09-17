@@ -14,6 +14,8 @@ export type Plant = {
   notes?: string;
   /** Any column we don't recognize, kept so nothing from the sheet is lost. */
   extra: Record<string, string>;
+  /** Typed in by hand rather than read from a spreadsheet. */
+  addedByHand?: boolean;
 };
 
 /** Known fields and the header spellings we accept for each. */
@@ -163,4 +165,10 @@ export function plantField(plant: Plant, field: FieldName): string | undefined {
     if (value && aliases.includes(normalizeHeader(header))) return value;
   }
   return undefined;
+}
+
+/** Whether a spreadsheet heading would be read as this field. */
+export function headerMatchesField(header: string, field: FieldName) {
+  const aliases: readonly string[] = FIELD_ALIASES[field];
+  return aliases.includes(normalizeHeader(header));
 }
