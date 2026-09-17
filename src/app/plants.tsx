@@ -16,6 +16,8 @@ import { buildReminders } from '@/lib/reminder-plan';
 import { getReminderPermission, syncScheduledReminders } from '@/lib/reminders';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
 import { filterByLight, lightHeaderIn } from '@/lib/light';
+import { pickPlantPhoto } from '@/lib/pick-photo';
+import { deleteAllPhotos, deletePhoto, savePhoto } from '@/lib/photo-storage';
 import {
   emptyLibrary,
   filterPlants,
@@ -25,6 +27,7 @@ import {
   type PlantLibrary,
   type SortMode,
 } from '@/lib/plant-library';
+import type { Plant } from '@/lib/plants';
 import { loadLibrary, loadReminderSettings, saveLibrary } from '@/lib/plant-storage';
 
 /** The columns the importer understands, shown on the empty state. */
@@ -130,8 +133,41 @@ export default function PlantsScreen() {
     setQuery('');
     setSortMode('sheet');
     setLightFilter('all');
+    await deleteAllPhotos();
     await saveLibrary(imported);
     await rescheduleReminders(imported);
+  }
+
+  /** Writes one changed plant back into the library and persists it. */
+  async function updatePlant(id: string, change: (plant: Plant) => Plant) {
+    const next: PlantLibrary = {
+      ...library,
+      plants: library.plants.map((plant) => (plant.id === id ? change(plant) : plant)),
+    };
+    setLibrary(next);
+    await saveLibrary(next);
+  }
+
+  async function handlePickPhoto(plant: Plant) {
+    const result = await pickPlantPhoto();
+    if (result.status === 'canceled') return;
+    if (result.status !== 'picked') {
+      setError(
+        result.status === 'denied'
+          ? 'Photo access is switched off for this app. Turn it on in your device settings.'
+          : "The photo library couldn't be opened."
+      );
+      return;
+    }
+
+    setError(null);
+    const stored = await savePhoto(result.asset, plant.id);
+    await updatePlant(plant.id, (current) => ({ ...current, photo: stored }));
+  }
+
+  async function handleRemovePhoto(plant: Plant) {
+    if (plant.photo) await deletePhoto(plant.photo);
+    await updatePlant(plant.id, ({ photo: _removed, ...rest }) => rest);
   }
 
   async function handleAdd(draft: PlantDraft) {
@@ -156,6 +192,7 @@ export default function PlantsScreen() {
     setSortMode('sheet');
     setLightFilter('all');
     setError(null);
+    await deleteAllPhotos();
     await saveLibrary(cleared);
     await rescheduleReminders(cleared);
   }
@@ -264,7 +301,12 @@ export default function PlantsScreen() {
           data={visiblePlants}
           keyExtractor={(plant) => plant.id}
           renderItem={({ item }) => (
-            <PlantCard plant={item} preferredDetail={sortMode === 'sheet' ? undefined : 'Watering'} />
+            <PlantCard
+              plant={item}
+              preferredDetail={sortMode === 'sheet' ? undefined : 'Watering'}
+              onPickPhoto={handlePickPhoto}
+              onRemovePhoto={handleRemovePhoto}
+            />
           )}
           ListHeaderComponent={header}
           ListEmptyComponent={empty}

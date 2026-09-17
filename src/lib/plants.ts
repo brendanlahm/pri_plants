@@ -16,6 +16,8 @@ export type Plant = {
   extra: Record<string, string>;
   /** Typed in by hand rather than read from a spreadsheet. */
   addedByHand?: boolean;
+  /** Stored photo: a file name on device, a data uri on the web. */
+  photo?: string;
 };
 
 /** Known fields and the header spellings we accept for each. */

@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -7,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { photoUri } from '@/lib/photo-storage';
 import type { Plant } from '@/lib/plants';
 
 /** Chips only fit short values; sheets full of sentences get a preview line instead. */
@@ -33,9 +35,16 @@ type PlantCardProps = {
   plant: Plant;
   /** Label of a row to always show on the collapsed card, e.g. the column being sorted on. */
   preferredDetail?: string;
+  onPickPhoto: (plant: Plant) => void;
+  onRemovePhoto: (plant: Plant) => void;
 };
 
-export function PlantCard({ plant, preferredDetail }: PlantCardProps) {
+export function PlantCard({
+  plant,
+  preferredDetail,
+  onPickPhoto,
+  onRemovePhoto,
+}: PlantCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const theme = useTheme();
 
@@ -48,12 +57,30 @@ export function PlantCard({ plant, preferredDetail }: PlantCardProps) {
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
-      <Pressable
-        onPress={() => setIsOpen((value) => !value)}
-        style={({ pressed }) => [styles.header, pressed && styles.pressed]}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        accessibilityLabel={plant.name}>
+      <View style={styles.header}>
+        <Pressable
+          onPress={() => onPickPhoto(plant)}
+          accessibilityRole="button"
+          accessibilityLabel={plant.photo ? `Change the photo of ${plant.name}` : `Add a photo of ${plant.name}`}
+          style={({ pressed }) => pressed && styles.pressed}>
+          {plant.photo ? (
+            <Image
+              source={{ uri: photoUri(plant.photo) }}
+              style={styles.photo}
+              contentFit="cover"
+              accessibilityLabel={plant.name}
+            />
+          ) : (
+            <ThemedView type="backgroundSelected" style={[styles.photo, styles.photoPlaceholder]}>
+              <SymbolView
+                name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
+                size={16}
+                tintColor={theme.textSecondary}
+              />
+            </ThemedView>
+          )}
+        </Pressable>
+
         <View style={styles.headerText}>
           <ThemedText style={styles.name}>{plant.name}</ThemedText>
           {plant.species ? (
@@ -62,14 +89,22 @@ export function PlantCard({ plant, preferredDetail }: PlantCardProps) {
             </ThemedText>
           ) : null}
         </View>
-        <SymbolView
-          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-          size={14}
-          weight="bold"
-          tintColor={theme.textSecondary}
-          style={{ transform: [{ rotate: isOpen ? '-90deg' : '90deg' }] }}
-        />
-      </Pressable>
+        <Pressable
+          onPress={() => setIsOpen((value) => !value)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isOpen }}
+          accessibilityLabel={plant.name}
+          hitSlop={Spacing.two}
+          style={({ pressed }) => pressed && styles.pressed}>
+          <SymbolView
+            name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+            size={14}
+            weight="bold"
+            tintColor={theme.textSecondary}
+            style={{ transform: [{ rotate: isOpen ? '-90deg' : '90deg' }] }}
+          />
+        </Pressable>
+      </View>
 
       {!isOpen && chips.length > 0 ? (
         <View style={styles.chipRow}>
@@ -107,6 +142,27 @@ export function PlantCard({ plant, preferredDetail }: PlantCardProps) {
               </View>
             ))
           )}
+
+          <View style={styles.photoActions}>
+            <Pressable
+              onPress={() => onPickPhoto(plant)}
+              accessibilityRole="button"
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedText type="small" style={{ color: theme.accent }}>
+                {plant.photo ? 'Change photo' : 'Add photo'}
+              </ThemedText>
+            </Pressable>
+            {plant.photo ? (
+              <Pressable
+                onPress={() => onRemovePhoto(plant)}
+                accessibilityRole="button"
+                style={({ pressed }) => pressed && styles.pressed}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Remove photo
+                </ThemedText>
+              </Pressable>
+            ) : null}
+          </View>
         </Animated.View>
       ) : null}
     </ThemedView>
@@ -129,6 +185,20 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+  },
+  photo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  photoPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoActions: {
+    flexDirection: 'row',
+    gap: Spacing.four,
+    paddingTop: Spacing.two,
   },
   name: {
     fontWeight: 600,
