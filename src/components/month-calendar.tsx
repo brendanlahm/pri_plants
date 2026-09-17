@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CareFilterToggles, type CareVisibility } from '@/components/care-filter-toggles';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -27,8 +28,10 @@ type MonthCalendarProps = {
   selected: Date;
   today: Date;
   eventsByDate: Map<string, CareEvent[]>;
+  visibleKinds: CareVisibility;
   onSelect: (date: Date) => void;
   onChangeMonth: (delta: number) => void;
+  onToggleKind: (kind: CareKind) => void;
 };
 
 export function MonthCalendar({
@@ -36,8 +39,10 @@ export function MonthCalendar({
   selected,
   today,
   eventsByDate,
+  visibleKinds,
   onSelect,
   onChangeMonth,
+  onToggleKind,
 }: MonthCalendarProps) {
   const theme = useTheme();
   const leadingBlanks = mondayIndex(new Date(month.getFullYear(), month.getMonth(), 1));
@@ -109,16 +114,7 @@ export function MonthCalendar({
         })}
       </View>
 
-      <View style={styles.legend}>
-        {CARE_KINDS.map((kind) => (
-          <View key={kind} style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: theme[kind] }]} />
-            <ThemedText type="small" themeColor="textSecondary">
-              {kind === 'water' ? 'Water' : 'Fertilize'}
-            </ThemedText>
-          </View>
-        ))}
-      </View>
+      <CareFilterToggles visible={visibleKinds} onToggle={onToggleKind} />
     </ThemedView>
   );
 }
@@ -210,16 +206,5 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-  },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.three,
-    paddingTop: Spacing.one,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
   },
 });

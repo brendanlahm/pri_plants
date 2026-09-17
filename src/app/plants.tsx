@@ -10,6 +10,8 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { defaultAnchors } from '@/lib/care-schedule';
+import { buildReminders } from '@/lib/reminder-plan';
+import { getReminderPermission, syncScheduledReminders } from '@/lib/reminders';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
 import {
   emptyLibrary,
@@ -18,7 +20,7 @@ import {
   type PlantLibrary,
   type SortMode,
 } from '@/lib/plant-library';
-import { loadLibrary, saveLibrary } from '@/lib/plant-storage';
+import { loadLibrary, loadReminderSettings, saveLibrary } from '@/lib/plant-storage';
 
 /** The columns the importer understands, shown on the empty state. */
 const EXPECTED_COLUMNS = 'Name · Species · Location · Watering · Light · Acquired · Notes';
@@ -63,6 +65,19 @@ export default function PlantsScreen() {
     [library.plants, query, sortMode]
   );
 
+  /**
+   * Reminders are derived from the list, so replacing or clearing it has to
+   * rebuild them. Otherwise notifications keep firing for plants that are gone.
+   */
+  async function rescheduleReminders(next: PlantLibrary) {
+    const settings = await loadReminderSettings();
+    if (!settings.enabled) return;
+    if ((await getReminderPermission()) !== 'granted') return;
+
+    const planned = next.careAnchors ? buildReminders(next.plants, next.careAnchors, settings) : [];
+    await syncScheduledReminders(planned);
+  }
+
   async function handleImport() {
     setIsImporting(true);
     setError(null);
@@ -86,6 +101,7 @@ export default function PlantsScreen() {
     setQuery('');
     setSortMode('sheet');
     await saveLibrary(imported);
+    await rescheduleReminders(imported);
   }
 
   async function handleClear() {
@@ -96,6 +112,7 @@ export default function PlantsScreen() {
     setSortMode('sheet');
     setError(null);
     await saveLibrary(cleared);
+    await rescheduleReminders(cleared);
   }
 
   const hasPlants = library.plants.length > 0;

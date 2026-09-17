@@ -123,3 +123,19 @@ export function careEventsByDate(
 export function plantsWithoutSchedule(plants: Plant[], kind: CareKind) {
   return plants.filter((plant) => careInterval(plant, kind) === undefined);
 }
+
+/** "13 to water · 2 to feed", or "Nothing due" when the day is clear. */
+export function summarizeCare(events: CareEvent[]) {
+  const parts = CARE_KINDS.map((kind) => {
+    const total = events.filter((event) => event.kind === kind).length;
+    return total === 0 ? null : `${total} to ${kind === 'water' ? 'water' : 'feed'}`;
+  }).filter(Boolean);
+  return parts.length === 0 ? 'Nothing due' : parts.join(' · ');
+}
+
+/** Plant names for a day, deduplicated — one plant can need both water and feeding. */
+export function careEventNames(events: CareEvent[], max = 4) {
+  const all = [...new Set(events.map((event) => event.plantName))];
+  if (all.length <= max) return all.join(', ');
+  return `${all.slice(0, max).join(', ')} and ${all.length - max} more`;
+}

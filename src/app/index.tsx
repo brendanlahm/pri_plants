@@ -1,11 +1,27 @@
 import { Image } from 'expo-image';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { TodayCard } from '@/components/today-card';
+import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useCareLibrary } from '@/hooks/use-care-library';
+import { careEventsByDate, toDateKey, type CareEvent } from '@/lib/care-schedule';
 
 export default function WelcomeScreen() {
+  const [today] = useState(() => new Date());
+  const { library, isLoading } = useCareLibrary();
+
+  const todaysEvents = useMemo<CareEvent[]>(() => {
+    if (!library.careAnchors) return [];
+    const byDate = careEventsByDate(library.plants, library.careAnchors, today, today);
+    return byDate.get(toDateKey(today)) ?? [];
+  }, [library, today]);
+
+  // Nothing imported yet, so the photo is left to speak for itself.
+  const showToday = !isLoading && library.plants.length > 0;
+
   return (
     <View style={styles.container}>
       <Image
@@ -17,8 +33,13 @@ export default function WelcomeScreen() {
       {/* Keeps the greeting legible wherever the canopy happens to be bright. */}
       <View style={[StyleSheet.absoluteFill, styles.scrim]} />
 
-      <SafeAreaView style={styles.content}>
-        <ThemedText style={styles.greeting}>{'Welcome\nJungle woman'}</ThemedText>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.content}>
+          <View style={styles.greetingBlock}>
+            <ThemedText style={styles.greeting}>{'Welcome\nJungle woman'}</ThemedText>
+          </View>
+          {showToday ? <TodayCard date={today} events={todaysEvents} /> : null}
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -32,11 +53,21 @@ const styles = StyleSheet.create({
   scrim: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
+  safeArea: {
+    flex: 1,
+    alignItems: 'center',
+  },
   content: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    paddingHorizontal: Spacing.four,
+    paddingBottom: BottomTabInset + Spacing.four,
+  },
+  greetingBlock: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
   },
   greeting: {
     color: '#FFFFFF',
