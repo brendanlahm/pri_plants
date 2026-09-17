@@ -36,7 +36,7 @@ export default function WelcomeScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <View style={styles.greetingBlock}>
-            <ThemedText style={styles.greeting}>{'Welcome\nJungle woman'}</ThemedText>
+            <ThemedText style={styles.greeting}>{'Welcome\nJungle \u091c\u0940\u0935'}</ThemedText>
           </View>
           {showToday ? <TodayCard date={today} events={todaysEvents} /> : null}
         </View>
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   greeting: {
     color: '#FFFFFF',
     fontSize: 44,
-    lineHeight: 52,
+    lineHeight: 60,
     fontWeight: 700,
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
