@@ -3,6 +3,7 @@ import { Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ImportButton } from '@/components/import-button';
+import { LightFilterControl, type LightFilter } from '@/components/light-filter';
 import { PlantCard } from '@/components/plant-card';
 import { SortControl } from '@/components/sort-control';
 import { ThemedText } from '@/components/themed-text';
@@ -13,6 +14,7 @@ import { defaultAnchors } from '@/lib/care-schedule';
 import { buildReminders } from '@/lib/reminder-plan';
 import { getReminderPermission, syncScheduledReminders } from '@/lib/reminders';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
+import { filterByLight } from '@/lib/light';
 import {
   emptyLibrary,
   filterPlants,
@@ -45,6 +47,7 @@ export default function PlantsScreen() {
   const [isImporting, setIsImporting] = useState(false);
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('sheet');
+  const [lightFilter, setLightFilter] = useState<LightFilter>('all');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,10 +63,10 @@ export default function PlantsScreen() {
     };
   }, []);
 
-  const visiblePlants = useMemo(
-    () => sortPlants(filterPlants(library.plants, query), sortMode),
-    [library.plants, query, sortMode]
-  );
+  const visiblePlants = useMemo(() => {
+    const byLight = filterByLight(library.plants, lightFilter === 'all' ? null : lightFilter);
+    return sortPlants(filterPlants(byLight, query), sortMode);
+  }, [library.plants, query, sortMode, lightFilter]);
 
   /**
    * Reminders are derived from the list, so replacing or clearing it has to
@@ -100,6 +103,7 @@ export default function PlantsScreen() {
     setLibrary(imported);
     setQuery('');
     setSortMode('sheet');
+    setLightFilter('all');
     await saveLibrary(imported);
     await rescheduleReminders(imported);
   }
@@ -110,6 +114,7 @@ export default function PlantsScreen() {
     setLibrary(cleared);
     setQuery('');
     setSortMode('sheet');
+    setLightFilter('all');
     setError(null);
     await saveLibrary(cleared);
     await rescheduleReminders(cleared);
@@ -135,7 +140,9 @@ export default function PlantsScreen() {
 
       {hasPlants ? (
         <ThemedText type="small" themeColor="textSecondary">
-          {library.plants.length} {library.plants.length === 1 ? 'plant' : 'plants'}
+          {visiblePlants.length < library.plants.length
+            ? `${visiblePlants.length} of ${library.plants.length} plants`
+            : `${library.plants.length} ${library.plants.length === 1 ? 'plant' : 'plants'}`}
           {library.fileName ? ` from ${library.fileName}` : ''}
         </ThemedText>
       ) : null}
@@ -166,6 +173,7 @@ export default function PlantsScreen() {
               { backgroundColor: theme.backgroundElement, color: theme.text },
             ]}
           />
+          <LightFilterControl value={lightFilter} onChange={setLightFilter} />
           <SortControl value={sortMode} onChange={setSortMode} />
         </>
       ) : null}
