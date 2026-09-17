@@ -17,6 +17,7 @@ import {
   careInterval,
   fromDayNumber,
   lastCareDay,
+  nextCareDay,
   toDayNumber,
   type CareAnchors,
   type CareKind,
@@ -28,6 +29,13 @@ import { wateringPhrase } from '@/lib/watering-filter';
 const SHORT_MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
+
+/** Counting in days is what someone actually wants to know from a due date. */
+function formatDaysUntil(days: number) {
+  if (days <= 0) return 'Next watering today';
+  if (days === 1) return 'Next watering tomorrow';
+  return `Next watering in ${days} days`;
+}
 
 /** An em dash rather than a date: this plant has not come round yet. */
 function formatCareDay(day: number | null) {
@@ -111,10 +119,11 @@ export function PlantCard({
   const today = toDayNumber(new Date());
   const lastWatered = anchors ? lastCareDay(plant, 'water', anchors, today) : null;
   const lastFertilized = anchors ? lastCareDay(plant, 'fertilize', anchors, today) : null;
+  const nextWatering = anchors ? nextCareDay(plant, 'water', anchors, today) : null;
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
-      <View style={styles.header}>
+      <View style={styles.body}>
         <Pressable
           onPress={() => onPickPhoto(plant)}
           accessibilityRole="button"
@@ -131,15 +140,15 @@ export function PlantCard({
             <ThemedView type="backgroundSelected" style={[styles.photo, styles.photoPlaceholder]}>
               <SymbolView
                 name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
-                size={22}
+                size={28}
                 tintColor={theme.textSecondary}
               />
             </ThemedView>
           )}
         </Pressable>
 
-        <View style={styles.headerText}>
-          <ThemedText style={styles.name}>{plant.name}</ThemedText>
+        <View style={styles.main}>
+          <ThemedText style={[styles.name, { color: theme.plantName }]}>{plant.name}</ThemedText>
           {/* The header is the only place the species appears, so it waits for
               the card to open rather than being dropped altogether. */}
           {isOpen && plant.species ? (
@@ -147,7 +156,49 @@ export function PlantCard({
               {plant.species}
             </ThemedText>
           ) : null}
+
+          {!isOpen && chips.length > 0 ? (
+            <View style={styles.chipRow}>
+              {chips.map((chip) => (
+                <ThemedView key={chip.text} type="backgroundSelected" style={styles.chip}>
+                  <ThemedText
+                    type="small"
+                    themeColor="textSecondary"
+                    numberOfLines={1}
+                    style={[styles.compact, chip.tone ? { color: theme[chip.tone] } : null]}>
+                    {chip.text}
+                  </ThemedText>
+                </ThemedView>
+              ))}
+            </View>
+          ) : null}
+
+          {anchors ? (
+            <View style={styles.lastCare}>
+              {nextWatering === null ? null : (
+                <View style={styles.lastCareRow}>
+                  <View style={[styles.careDot, { backgroundColor: theme.text }]} />
+                  <ThemedText type="small" style={[styles.compact, styles.due, { color: theme.text }]}>
+                    {formatDaysUntil(nextWatering - today)}
+                  </ThemedText>
+                </View>
+              )}
+              <View style={styles.lastCareRow}>
+                <View style={[styles.careDot, { backgroundColor: theme.water }]} />
+                <ThemedText type="small" themeColor="textSecondary" style={styles.compact}>
+                  Last watered on: {formatCareDay(lastWatered)}
+                </ThemedText>
+              </View>
+              <View style={styles.lastCareRow}>
+                <View style={[styles.careDot, { backgroundColor: theme.fertilize }]} />
+                <ThemedText type="small" themeColor="textSecondary" style={styles.compact}>
+                  Last fertilized on: {formatCareDay(lastFertilized)}
+                </ThemedText>
+              </View>
+            </View>
+          ) : null}
         </View>
+
         <Pressable
           onPress={() => setIsOpen((value) => !value)}
           accessibilityRole="button"
@@ -165,39 +216,6 @@ export function PlantCard({
           </Animated.View>
         </Pressable>
       </View>
-
-      {!isOpen && chips.length > 0 ? (
-        <View style={styles.chipRow}>
-          {chips.map((chip) => (
-            <ThemedView key={chip.text} type="backgroundSelected" style={styles.chip}>
-              <ThemedText
-                type="small"
-                themeColor="textSecondary"
-                numberOfLines={1}
-                style={chip.tone ? { color: theme[chip.tone] } : undefined}>
-                {chip.text}
-              </ThemedText>
-            </ThemedView>
-          ))}
-        </View>
-      ) : null}
-
-      {anchors ? (
-        <View style={styles.lastCare}>
-          <View style={styles.lastCareRow}>
-            <View style={[styles.careDot, { backgroundColor: theme.water }]} />
-            <ThemedText type="small" themeColor="textSecondary">
-              Last watered on: {formatCareDay(lastWatered)}
-            </ThemedText>
-          </View>
-          <View style={styles.lastCareRow}>
-            <View style={[styles.careDot, { backgroundColor: theme.fertilize }]} />
-            <ThemedText type="small" themeColor="textSecondary">
-              Last fertilized on: {formatCareDay(lastFertilized)}
-            </ThemedText>
-          </View>
-        </View>
-      ) : null}
 
       {isOpen ? (
         <Animated.View entering={FadeIn.duration(150)} style={styles.details}>
@@ -259,7 +277,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  header: {
+  body: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
@@ -267,12 +285,13 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
-  headerText: {
+  main: {
     flex: 1,
+    gap: Spacing.one,
   },
   photo: {
-    width: 60,
-    height: 60,
+    width: 90,
+    height: 90,
     // Square, with the corners softened to match the cards and chips around it.
     borderRadius: Spacing.two,
   },
@@ -286,7 +305,17 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
   },
   name: {
+    fontWeight: 700,
+  },
+  due: {
     fontWeight: 600,
+  },
+  /* Beside a 120px photo the column is narrow; a size down, at regular weight,
+     keeps the dates on one line instead of breaking mid-date. */
+  compact: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: 400,
   },
   species: {
     fontStyle: 'italic',
@@ -308,7 +337,7 @@ const styles = StyleSheet.create({
   lastCareRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.one,
   },
   careDot: {
     width: 6,

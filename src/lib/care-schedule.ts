@@ -174,3 +174,33 @@ export function lastCareDay(
   }
   return null;
 }
+
+/**
+ * The next care date at or after `today`, or null when the column holds no
+ * readable schedule.
+ *
+ * The anchor day itself is never the answer for watering: it is the day
+ * everything was last watered, so the next round is one interval later.
+ */
+export function nextCareDay(
+  plant: Plant,
+  kind: CareKind,
+  anchors: CareAnchors,
+  todayDay: number
+): number | null {
+  const interval = careInterval(plant, kind);
+  if (interval === undefined) return null;
+
+  const anchorDay = toDayNumber(
+    fromDateKey(kind === 'water' ? anchors.wateredAt : anchors.fertilizedAt)
+  );
+
+  // Start before the answer and walk forward: rounding each occurrence means the
+  // quotient alone is not an exact starting point.
+  let n = Math.max(1, Math.floor((todayDay - anchorDay) / interval) - 1);
+  for (let guard = 0; guard < 1000; guard++, n++) {
+    const day = anchorDay + Math.round(n * interval);
+    if (day >= todayDay) return day;
+  }
+  return null;
+}
