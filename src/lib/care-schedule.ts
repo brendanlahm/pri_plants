@@ -43,18 +43,20 @@ export function fromDateKey(key: string) {
   return new Date(year, month - 1, day);
 }
 
-export function addMonths(date: Date, months: number) {
-  const shifted = new Date(date.getFullYear(), date.getMonth() + months, 1);
-  // Clamp to the last day of the target month, so 31 March minus one month is 28 February.
-  const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
-  return new Date(shifted.getFullYear(), shifted.getMonth(), Math.min(date.getDate(), lastDay));
-}
-
-/** The starting assumption: everything watered today, everything fertilized a month ago. */
+/**
+ * The starting assumption: everything watered today, and fertilizing counted
+ * from tomorrow.
+ *
+ * Back-dating the fertilizing anchor put the monthly plants' first feed in the
+ * past, and past dates are skipped — so they vanished from the calendar for a
+ * month with nothing to say they had been missed. Counting from tomorrow gives
+ * every plant a first feed that is genuinely ahead of it.
+ */
 export function defaultAnchors(today = new Date()): CareAnchors {
+  const tomorrow = fromDayNumber(toDayNumber(today) + 1);
   return {
     wateredAt: toDateKey(today),
-    fertilizedAt: toDateKey(addMonths(today, -1)),
+    fertilizedAt: toDateKey(tomorrow),
   };
 }
 

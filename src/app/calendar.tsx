@@ -218,16 +218,18 @@ export default function CalendarScreen() {
 
       {careAnchors ? (
         <ThemedText type="small" themeColor="textSecondary">
-          Watered {careAnchors.wateredAt}, fertilized {careAnchors.fertilizedAt}. Everything after
-          that is worked out from each plant&apos;s own schedule.
+          Watering counted from {careAnchors.wateredAt}, fertilizing from{' '}
+          {careAnchors.fertilizedAt}. Every date after that comes from each plant&apos;s own
+          frequency.
         </ThemedText>
       ) : null}
 
       {!careAnchors && plants.length > 0 ? (
         <ThemedView type="backgroundElement" style={styles.note}>
           <ThemedText type="small">
-            The calendar is empty. Start it again and every plant counts as watered today and
-            fertilized a month ago, with dates worked out from there.
+            The calendar is empty. Start it again and every plant counts as watered today, with
+            fertilizing counted from tomorrow, and dates worked out from each plant&apos;s own
+            frequency.
           </ThemedText>
           <Pressable
             onPress={() => setSchedule(defaultAnchors())}
