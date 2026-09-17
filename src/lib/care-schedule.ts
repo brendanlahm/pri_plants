@@ -141,3 +141,36 @@ export function careEventNames(events: CareEvent[], max = 4) {
   if (all.length <= max) return all.join(', ');
   return `${all.slice(0, max).join(', ')} and ${all.length - max} more`;
 }
+
+/**
+ * The most recent care date at or before `today`, or null if there has not been
+ * one yet.
+ *
+ * Watering counts its anchor as a real past watering — the schedule starts from
+ * "everything watered that day". Fertilizing does not: its anchor is the point
+ * the count begins, so the first feed is one interval after it.
+ */
+export function lastCareDay(
+  plant: Plant,
+  kind: CareKind,
+  anchors: CareAnchors,
+  todayDay: number
+): number | null {
+  const interval = careInterval(plant, kind);
+  if (interval === undefined) return null;
+
+  const anchorDay = toDayNumber(
+    fromDateKey(kind === 'water' ? anchors.wateredAt : anchors.fertilizedAt)
+  );
+  const earliest = kind === 'water' ? 0 : 1;
+
+  // Start past the answer and walk back, since rounding each occurrence means
+  // the quotient alone is not exact.
+  let n = Math.floor((todayDay - anchorDay) / interval) + 2;
+  while (n >= earliest) {
+    const day = anchorDay + Math.round(n * interval);
+    if (day <= todayDay) return day;
+    n--;
+  }
+  return null;
+}

@@ -2,20 +2,69 @@ import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useDerivedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  careInterval,
+  fromDayNumber,
+  lastCareDay,
+  toDayNumber,
+  type CareAnchors,
+  type CareKind,
+} from '@/lib/care-schedule';
 import { photoUri } from '@/lib/photo-storage';
-import type { Plant } from '@/lib/plants';
+import { headerMatchesField, type Plant } from '@/lib/plants';
+import { wateringPhrase } from '@/lib/watering-filter';
 
-/** Chips only fit short values; sheets full of sentences get a preview line instead. */
+const SHORT_MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/** An em dash rather than a date: this plant has not come round yet. */
+function formatCareDay(day: number | null) {
+  if (day === null) return '\u2014';
+  const date = fromDayNumber(day);
+  return `${date.getDate()} ${SHORT_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+/** Long values are care notes, not summaries; they belong in the expanded card. */
 const MAX_CHIP_LENGTH = 24;
 
-function summaryChips(details: [string, string][]) {
-  return details.filter(([, value]) => value.length <= MAX_CHIP_LENGTH).slice(0, 3);
+/** Chips borrow the calendar's colours: blue is water, amber is feeding. */
+type Chip = { text: string; tone?: CareKind };
+
+/**
+ * What the collapsed card shows: how often to water, then any other value short
+ * enough to read at a glance.
+ *
+ * The watering chip is the interval read out of the column rather than the
+ * column itself, so "Every 3 weeks, let soil dry out completely" shows as
+ * "Water every 3 weeks" without the note trailing behind it.
+ */
+function summaryChips(plant: Plant, details: [string, string][]): Chip[] {
+  const days = careInterval(plant, 'water');
+  const watering: Chip[] = days === undefined ? [] : [{ text: wateringPhrase(days), tone: 'water' }];
+
+  const rest: Chip[] = details
+    .filter(([label, value]) => label !== 'Watering' && value.length <= MAX_CHIP_LENGTH)
+    .map(([label, value]) => ({
+      text: value,
+      // A sheet may call this column anything, so match on the heading.
+      tone: label === 'Fertilizing' || headerMatchesField(label, 'fertilizing')
+        ? ('fertilize' as const)
+        : undefined,
+    }));
+
+  return [...watering, ...rest].slice(0, 3);
 }
 
 /** Everything else worth showing once the card is expanded. */
@@ -33,8 +82,8 @@ function detailRows(plant: Plant) {
 
 type PlantCardProps = {
   plant: Plant;
-  /** Label of a row to always show on the collapsed card, e.g. the column being sorted on. */
-  preferredDetail?: string;
+  /** Null while the schedule is off, when there is nothing to count from. */
+  anchors: CareAnchors | null;
   onPickPhoto: (plant: Plant) => void;
   onRemovePhoto: (plant: Plant) => void;
   onEdit: (plant: Plant) => void;
@@ -42,7 +91,7 @@ type PlantCardProps = {
 
 export function PlantCard({
   plant,
-  preferredDetail,
+  anchors,
   onPickPhoto,
   onRemovePhoto,
   onEdit,
@@ -51,11 +100,17 @@ export function PlantCard({
   const theme = useTheme();
 
   const details = detailRows(plant);
-  const pinned = preferredDetail
-    ? details.find(([label]) => label === preferredDetail)
-    : undefined;
-  const chips = pinned ? [] : summaryChips(details);
-  const preview = pinned ?? (chips.length === 0 ? details[0] : undefined);
+  const chips = summaryChips(plant, details);
+
+  // Turn the chevron rather than flipping it.
+  const turn = useDerivedValue(() => withTiming(isOpen ? 1 : 0, { duration: 180 }), [isOpen]);
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${90 - turn.value * 180}deg` }],
+  }));
+
+  const today = toDayNumber(new Date());
+  const lastWatered = anchors ? lastCareDay(plant, 'water', anchors, today) : null;
+  const lastFertilized = anchors ? lastCareDay(plant, 'fertilize', anchors, today) : null;
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -98,32 +153,48 @@ export function PlantCard({
           accessibilityLabel={plant.name}
           hitSlop={Spacing.two}
           style={({ pressed }) => pressed && styles.pressed}>
-          <SymbolView
-            name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-            size={14}
-            weight="bold"
-            tintColor={theme.textSecondary}
-            style={{ transform: [{ rotate: isOpen ? '-90deg' : '90deg' }] }}
-          />
+          <Animated.View style={chevronStyle}>
+            <SymbolView
+              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+              size={14}
+              weight="bold"
+              tintColor={theme.textSecondary}
+            />
+          </Animated.View>
         </Pressable>
       </View>
 
       {!isOpen && chips.length > 0 ? (
         <View style={styles.chipRow}>
-          {chips.map(([label, value]) => (
-            <ThemedView key={label} type="backgroundSelected" style={styles.chip}>
-              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                {value}
+          {chips.map((chip) => (
+            <ThemedView key={chip.text} type="backgroundSelected" style={styles.chip}>
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                numberOfLines={1}
+                style={chip.tone ? { color: theme[chip.tone] } : undefined}>
+                {chip.text}
               </ThemedText>
             </ThemedView>
           ))}
         </View>
       ) : null}
 
-      {!isOpen && preview ? (
-        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          {preview[0]}: {preview[1]}
-        </ThemedText>
+      {anchors ? (
+        <View style={styles.lastCare}>
+          <View style={styles.lastCareRow}>
+            <View style={[styles.careDot, { backgroundColor: theme.water }]} />
+            <ThemedText type="small" themeColor="textSecondary">
+              Last watered on: {formatCareDay(lastWatered)}
+            </ThemedText>
+          </View>
+          <View style={styles.lastCareRow}>
+            <View style={[styles.careDot, { backgroundColor: theme.fertilize }]} />
+            <ThemedText type="small" themeColor="textSecondary">
+              Last fertilized on: {formatCareDay(lastFertilized)}
+            </ThemedText>
+          </View>
+        </View>
       ) : null}
 
       {isOpen ? (
@@ -227,6 +298,19 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.half,
     paddingHorizontal: Spacing.two,
     maxWidth: '100%',
+  },
+  lastCare: {
+    gap: 3,
+  },
+  lastCareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  careDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   details: {
     gap: Spacing.one,

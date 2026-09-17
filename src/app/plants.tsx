@@ -7,6 +7,7 @@ import { AddPlantModal } from '@/components/add-plant-modal';
 import { EditPlantModal } from '@/components/edit-plant-modal';
 import { ListOptions } from '@/components/list-options';
 import { PlantCard } from '@/components/plant-card';
+import { LeafTitle } from '@/components/leaf-title';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -55,7 +56,6 @@ function confirmReplace(handAdded: number) {
 }
 
 export default function PlantsScreen() {
-  const theme = useTheme();
   const { library, setLibrary, isLoading } = useCareLibrary();
   const [isImporting, setIsImporting] = useState(false);
   const [query, setQuery] = useState('');
@@ -188,7 +188,7 @@ export default function PlantsScreen() {
   const header = (
     <View style={styles.header}>
       <View style={styles.titleRow}>
-        <ThemedText type="subtitle">Plants</ThemedText>
+        <LeafTitle>Plants</LeafTitle>
         <View style={styles.titleActions}>
           {hasPlants ? (
             <Pressable
@@ -200,19 +200,7 @@ export default function PlantsScreen() {
               </ThemedText>
             </Pressable>
           ) : null}
-          <Pressable
-            onPress={() => setIsAdding(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Add a plant"
-            style={({ pressed }) => [
-              styles.addButton,
-              { backgroundColor: theme.accent },
-              pressed && styles.pressed,
-            ]}>
-            <ThemedText themeColor="accentText" style={styles.addLabel}>
-              +
-            </ThemedText>
-          </Pressable>
+          <AddButton onPress={() => setIsAdding(true)} />
         </View>
       </View>
 
@@ -230,18 +218,7 @@ export default function PlantsScreen() {
 
       {hasPlants ? (
         <>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search plants"
-            placeholderTextColor={theme.textSecondary}
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-            style={[
-              styles.search,
-              { backgroundColor: theme.backgroundElement, color: theme.text },
-            ]}
-          />
+          <SearchField value={query} onChangeText={setQuery} />
           <ListOptions
             watering={wateringFilter}
             light={lightFilter}
@@ -297,6 +274,7 @@ export default function PlantsScreen() {
           renderItem={({ item }) => (
             <PlantCard
               plant={item}
+              anchors={library.careAnchors}
               onPickPhoto={handlePickPhoto}
               onRemovePhoto={handleRemovePhoto}
               onEdit={setEditing}
@@ -309,6 +287,54 @@ export default function PlantsScreen() {
         />
       </SafeAreaView>
     </ThemedView>
+  );
+}
+
+/**
+ * These two carry inline theme colours, so they have to be components rather
+ * than inline JSX: the screen's header is memoized and its styles are not
+ * recomputed when the colour scheme changes, whereas a component holding its
+ * own useTheme re-renders on the change regardless.
+ */
+function SearchField({
+  value,
+  onChangeText,
+}: {
+  value: string;
+  onChangeText: (value: string) => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder="Search plants"
+      placeholderTextColor={theme.textSecondary}
+      autoCorrect={false}
+      clearButtonMode="while-editing"
+      style={[styles.search, { backgroundColor: theme.backgroundElement, color: theme.text }]}
+    />
+  );
+}
+
+function AddButton({ onPress }: { onPress: () => void }) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Add a plant"
+      style={({ pressed }) => [
+        styles.addButton,
+        { backgroundColor: theme.accent },
+        pressed && styles.pressed,
+      ]}>
+      <ThemedText themeColor="accentText" style={styles.addLabel}>
+        +
+      </ThemedText>
+    </Pressable>
   );
 }
 

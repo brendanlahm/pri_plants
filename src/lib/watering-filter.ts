@@ -44,3 +44,18 @@ export function filterByWatering(plants: Plant[], filter: WateringFilter): Plant
   const wanted = Number(filter);
   return plants.filter((plant) => careInterval(plant, 'water') === wanted);
 }
+
+/**
+ * The frequency on its own, phrased so it reads without a label beside it.
+ *
+ * The stored text usually carries care notes too ("Every 3 weeks, let soil dry
+ * out completely"); this is the interval that was read out of it, so the notes
+ * cannot come along.
+ */
+export function wateringPhrase(days: number) {
+  if (days === 1) return 'Water daily';
+  if (days === 7) return 'Water weekly';
+  if (days % 7 === 0) return `Water every ${days / 7} weeks`;
+  const rounded = Number.isInteger(days) ? days : Number(days.toFixed(1));
+  return `Water every ${rounded} ${rounded === 1 ? 'day' : 'days'}`;
+}

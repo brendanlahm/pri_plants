@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ALL_CARE_VISIBLE, type CareVisibility } from '@/components/care-filter-toggles';
@@ -7,6 +8,7 @@ import { DayView } from '@/components/day-view';
 import { MonthCalendar } from '@/components/month-calendar';
 import { PillGroup, type PillOption } from '@/components/pill-group';
 import { ReminderSettingsCard } from '@/components/reminder-settings-card';
+import { LeafTitle } from '@/components/leaf-title';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -203,7 +205,7 @@ export default function CalendarScreen() {
   const header = (
     <View style={styles.header}>
       <View style={styles.titleRow}>
-        <ThemedText type="subtitle">Calendar</ThemedText>
+        <LeafTitle>Calendar</LeafTitle>
         {careAnchors && plants.length > 0 ? (
           <Pressable
             onPress={clearSchedule}
@@ -252,8 +254,9 @@ export default function CalendarScreen() {
 
           {viewMode === 'month' ? (
             <>
-              <MonthCalendar
-                month={month}
+              <Animated.View key={toDateKey(month)} entering={FadeIn.duration(180)}>
+                <MonthCalendar
+                  month={month}
                 selected={selected}
                 today={today}
                 eventsByDate={eventsByDate}
@@ -268,9 +271,10 @@ export default function CalendarScreen() {
                   const holdsToday =
                     next.getFullYear() === today.getFullYear() &&
                     next.getMonth() === today.getMonth();
-                  setSelected(holdsToday ? today : next);
-                }}
-              />
+                    setSelected(holdsToday ? today : next);
+                  }}
+                />
+              </Animated.View>
               <ThemedText style={styles.dayTitle}>{formatDay(selected)}</ThemedText>
             </>
           ) : (
@@ -358,7 +362,9 @@ export default function CalendarScreen() {
                 </ThemedText>
               </View>
             ) : (
-              <ThemedView type="backgroundElement" style={styles.plantRow}>
+              <ThemedView
+                type="backgroundElement"
+                style={[styles.plantRow, { borderLeftColor: theme[item.event.kind] }]}>
                 <ThemedText type="small">{item.event.plantName}</ThemedText>
               </ThemedView>
             )
@@ -432,6 +438,8 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
+    // Ties each row to the kind of care named above it.
+    borderLeftWidth: 3,
   },
   note: {
     borderRadius: Spacing.three,

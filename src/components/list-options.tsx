@@ -1,6 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -74,41 +75,43 @@ export function ListOptions({
       </Pressable>
 
       {isOpen ? (
-        <ThemedView type="backgroundElement" style={styles.menu}>
-          {/* The menu stays open on a choice: there are two groups to set here. */}
-          <ScrollView style={styles.menuScroll} nestedScrollEnabled>
-            {wateringGroups.length > 1 ? (
-              <>
-                <SectionHeading>Watering</SectionHeading>
-                {wateringGroups.map((group) => (
-                  <Option
-                    key={group.key}
-                    label={group.label}
-                    count={group.count}
-                    selected={group.key === watering}
-                    // Unfiltered is the default rather than a row, so the chosen
-                    // option is what lets go of itself.
-                    onPress={() => onWateringChange(group.key === watering ? 'all' : group.key)}
-                  />
-                ))}
-              </>
-            ) : null}
+        <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)}>
+          <ThemedView type="backgroundElement" style={styles.menu}>
+            {/* The menu stays open on a choice: there are two groups to set here. */}
+            <ScrollView style={styles.menuScroll} nestedScrollEnabled>
+              {wateringGroups.length > 1 ? (
+                <>
+                  <SectionHeading>Watering</SectionHeading>
+                  {wateringGroups.map((group) => (
+                    <Option
+                      key={group.key}
+                      label={group.label}
+                      count={group.count}
+                      selected={group.key === watering}
+                      // Unfiltered is the default rather than a row, so the chosen
+                      // option is what lets go of itself.
+                      onPress={() => onWateringChange(group.key === watering ? 'all' : group.key)}
+                    />
+                  ))}
+                </>
+              ) : null}
 
-            {lightLevels.length > 1 ? (
-              <>
-                <SectionHeading>{lightLabel}</SectionHeading>
-                {lightLevels.map((level) => (
-                  <Option
-                    key={level}
-                    label={LIGHT_LABELS[level]}
-                    selected={level === light}
-                    onPress={() => onLightChange(level === light ? 'all' : level)}
-                  />
-                ))}
-              </>
-            ) : null}
-          </ScrollView>
-        </ThemedView>
+              {lightLevels.length > 1 ? (
+                <>
+                  <SectionHeading>{lightLabel}</SectionHeading>
+                  {lightLevels.map((level) => (
+                    <Option
+                      key={level}
+                      label={LIGHT_LABELS[level]}
+                      selected={level === light}
+                      onPress={() => onLightChange(level === light ? 'all' : level)}
+                    />
+                  ))}
+                </>
+              ) : null}
+              </ScrollView>
+          </ThemedView>
+        </Animated.View>
       ) : null}
     </View>
   );
