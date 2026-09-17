@@ -195,18 +195,9 @@ export default function PlantsScreen() {
 
       {hasPlants ? (
         <ThemedText type="small" themeColor="textSecondary">
-          {visiblePlants.length < library.plants.length
-            ? `${visiblePlants.length} of ${library.plants.length} plants`
-            : `${library.plants.length} ${library.plants.length === 1 ? 'plant' : 'plants'}`}
-          {library.fileName ? ` from ${library.fileName}` : ''}
+          {library.plants.length} {library.plants.length === 1 ? 'plant' : 'plants'}
         </ThemedText>
       ) : null}
-
-      <ImportButton
-        label={hasPlants ? 'Import a different spreadsheet' : 'Import a spreadsheet'}
-        busy={isImporting}
-        onPress={handleImport}
-      />
 
       {error ? (
         <ThemedView type="backgroundElement" style={styles.errorBox}>
@@ -254,6 +245,7 @@ export default function PlantsScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             Any other column is kept and shown when you tap a plant. Or use + to add one by hand.
           </ThemedText>
+          <ImportButton label="Import a spreadsheet" busy={isImporting} onPress={handleImport} />
         </>
       )}
     </ThemedView>
