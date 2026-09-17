@@ -33,11 +33,19 @@ const KEYWORD_DAYS: Record<string, number> = {
   'bi-weekly': 14,
   fortnightly: 14,
   monthly: 30,
+  quarterly: 91.25,
+  'half-yearly': 182.5,
+  halfyearly: 182.5,
+  'semi-annually': 182.5,
+  semiannually: 182.5,
+  biannually: 182.5,
   yearly: 365,
   annually: 365,
 };
 
-const COUNT = '(\\d+(?:\\.\\d+)?|once|twice|thrice|one|two|three|four|five|six|seven)';
+// The ordinal suffix is consumed but not captured, so "every 3rd day" reads as 3.
+const COUNT =
+  '(\\d+(?:\\.\\d+)?|once|twice|thrice|one|two|three|four|five|six|seven)(?:st|nd|rd|th)?';
 const RANGE_SEPARATOR = '(?:\\s*(?:-|–|—|to|or)\\s*(\\d+(?:\\.\\d+)?))?';
 const UNIT = '(day|week|month|year)s?';
 
@@ -47,7 +55,10 @@ const RATE = new RegExp(`${COUNT}${RANGE_SEPARATOR}\\s*(?:x|times)?\\s*(?:per|a|
 const INTERVAL = new RegExp(`every\\s+${COUNT}${RANGE_SEPARATOR}\\s*${UNIT}`, 'gi');
 /** "every other day" */
 const EVERY_OTHER = new RegExp(`every\\s+other\\s+${UNIT}`, 'gi');
-const KEYWORD = /\b(daily|weekly|bi-weekly|biweekly|fortnightly|monthly|yearly|annually)\b/gi;
+/** "every day", with no number at all. */
+const EVERY_UNIT = new RegExp(`every\\s+${UNIT}`, 'gi');
+const KEYWORD =
+  /\b(half-yearly|halfyearly|semi-annually|semiannually|biannually|quarterly|bi-weekly|biweekly|fortnightly|daily|weekly|monthly|yearly|annually)\b/gi;
 
 function toNumber(value: string | undefined) {
   if (!value) return undefined;
@@ -104,6 +115,7 @@ export function careIntervalDays(text: string | undefined): number | undefined {
       const unit = UNIT_DAYS[match[1].toLowerCase()];
       return unit === undefined ? undefined : unit * 2;
     }),
+    ...collect(EVERY_UNIT, text, (match) => UNIT_DAYS[match[1].toLowerCase()]),
     ...collect(KEYWORD, text, (match) => KEYWORD_DAYS[match[1].toLowerCase()]),
   ];
 
