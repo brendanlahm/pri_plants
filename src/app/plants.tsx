@@ -17,8 +17,9 @@ import { confirm } from '@/lib/confirm';
 import { buildReminders } from '@/lib/reminder-plan';
 import { getReminderPermission, syncScheduledReminders } from '@/lib/reminders';
 import { importPlantsFromSpreadsheet } from '@/lib/import-plants';
-import { filterByLight, lightHeaderIn, type LightFilter } from '@/lib/light';
+import { filterByLight, lightHeaderIn, lightLevelsInUse, type LightFilter } from '@/lib/light';
 import { applyEdits } from '@/lib/plant-fields';
+import { filterByWatering, wateringGroups, type WateringFilter } from '@/lib/watering-filter';
 import { pickPlantPhoto } from '@/lib/pick-photo';
 import { deleteAllPhotos, deletePhoto, savePhoto } from '@/lib/photo-storage';
 import {
@@ -26,10 +27,8 @@ import {
   filterPlants,
   plantFromDraft,
   sortPlants,
-  DEFAULT_SORT,
   type PlantDraft,
   type PlantLibrary,
-  type SortMode,
 } from '@/lib/plant-library';
 import type { Plant } from '@/lib/plants';
 import { loadReminderSettings, saveLibrary } from '@/lib/plant-storage';
@@ -60,16 +59,21 @@ export default function PlantsScreen() {
   const { library, setLibrary, isLoading } = useCareLibrary();
   const [isImporting, setIsImporting] = useState(false);
   const [query, setQuery] = useState('');
-  const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT);
   const [lightFilter, setLightFilter] = useState<LightFilter>('all');
+  const [wateringFilter, setWateringFilter] = useState<WateringFilter>('all');
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<Plant | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const visiblePlants = useMemo(() => {
     const byLight = filterByLight(library.plants, lightFilter === 'all' ? null : lightFilter);
-    return sortPlants(filterPlants(byLight, query), sortMode);
-  }, [library.plants, query, sortMode, lightFilter]);
+    const byWatering = filterByWatering(byLight, wateringFilter);
+    return sortPlants(filterPlants(byWatering, query));
+  }, [library.plants, query, lightFilter, wateringFilter]);
+
+  // Only offer what this list actually uses, so no option ever returns nothing.
+  const waterOptions = useMemo(() => wateringGroups(library.plants), [library.plants]);
+  const lightOptions = useMemo(() => lightLevelsInUse(library.plants), [library.plants]);
 
   /**
    * Reminders are derived from the list, so replacing or clearing it has to
@@ -109,7 +113,6 @@ export default function PlantsScreen() {
     };
     setLibrary(imported);
     setQuery('');
-    setSortMode(DEFAULT_SORT);
     setLightFilter('all');
     await deleteAllPhotos();
     await saveLibrary(imported);
@@ -172,8 +175,8 @@ export default function PlantsScreen() {
     const cleared = emptyLibrary();
     setLibrary(cleared);
     setQuery('');
-    setSortMode(DEFAULT_SORT);
     setLightFilter('all');
+    setWateringFilter('all');
     setError(null);
     await deleteAllPhotos();
     await saveLibrary(cleared);
@@ -240,10 +243,12 @@ export default function PlantsScreen() {
             ]}
           />
           <ListOptions
-            sort={sortMode}
+            watering={wateringFilter}
             light={lightFilter}
             lightLabel={lightHeaderIn(library.plants) ?? 'Light'}
-            onSortChange={setSortMode}
+            wateringGroups={waterOptions}
+            lightLevels={lightOptions}
+            onWateringChange={setWateringFilter}
             onLightChange={setLightFilter}
           />
         </>
@@ -292,7 +297,6 @@ export default function PlantsScreen() {
           renderItem={({ item }) => (
             <PlantCard
               plant={item}
-              preferredDetail={sortMode === 'alphabetical' ? undefined : 'Watering'}
               onPickPhoto={handlePickPhoto}
               onRemovePhoto={handleRemovePhoto}
               onEdit={setEditing}

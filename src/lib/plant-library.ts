@@ -1,6 +1,5 @@
 import { lightHeaderIn } from '@/lib/light';
 import { headerMatchesField, type Plant } from '@/lib/plants';
-import { careIntervalDays } from '@/lib/care-interval';
 import type { CareAnchors } from '@/lib/care-schedule';
 
 /** The imported list, plus where it came from. */
@@ -52,46 +51,16 @@ export function filterPlants(plants: Plant[], query: string) {
   );
 }
 
-/** How the list is ordered. */
-export type SortMode = 'alphabetical' | 'wateringOften' | 'wateringRarely';
-
-export const DEFAULT_SORT: SortMode = 'alphabetical';
-
-export const SORT_LABELS: Record<SortMode, string> = {
-  alphabetical: 'A\u2013Z',
-  wateringOften: 'Watered often',
-  wateringRarely: 'Watered rarely',
-};
-
 /**
- * Orders the list without mutating it. Plants whose watering column says nothing
- * readable sit at the end in their original order, rather than being scattered
- * through a list they cannot meaningfully take part in.
+ * Orders the list alphabetically without mutating it.
+ *
+ * Case-insensitive, because these names mix case: a plain sort files every
+ * lowercase one in a block after the rest, instead of where it is looked for.
  */
-export function sortPlants(plants: Plant[], mode: SortMode): Plant[] {
-  if (mode === 'alphabetical') {
-    // `base` sensitivity so "boston fern" and "Boston fern" sort together rather
-    // than all the capitalised names landing in a block of their own.
-    return [...plants].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-    );
-  }
-
-  const sheetOrder = new Map(plants.map((plant, index) => [plant.id, index]));
-  const intervals = new Map(plants.map((plant) => [plant.id, careIntervalDays(plant.watering)]));
-  const direction = mode === 'wateringOften' ? 1 : -1;
-
-  return [...plants].sort((a, b) => {
-    const left = intervals.get(a.id);
-    const right = intervals.get(b.id);
-    if (left === undefined || right === undefined) {
-      if (left !== undefined) return -1;
-      if (right !== undefined) return 1;
-    } else if (left !== right) {
-      return (left - right) * direction;
-    }
-    return sheetOrder.get(a.id)! - sheetOrder.get(b.id)!;
-  });
+export function sortPlants(plants: Plant[]): Plant[] {
+  return [...plants].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
 }
 
 /** The four things the add form asks for. */

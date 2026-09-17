@@ -1,14 +1,16 @@
 import type { Plant } from '@/lib/plants';
 
 /** How much light a plant will accept. A plant usually tolerates more than one. */
-export type LightLevel = 'direct' | 'bright' | 'low';
+export type LightLevel = 'direct' | 'bright' | 'low' | 'shade';
 
-export const LIGHT_LEVELS: LightLevel[] = ['direct', 'bright', 'low'];
+/** Brightest first. The order is what lets a range fill in the levels it spans. */
+export const LIGHT_LEVELS: LightLevel[] = ['direct', 'bright', 'low', 'shade'];
 
 export const LIGHT_LABELS: Record<LightLevel, string> = {
   direct: 'Full sun',
   bright: 'Bright indirect',
   low: 'Low light',
+  shade: 'Shade',
 };
 
 /** `all` is the unfiltered state; the rest are the light levels. */
@@ -36,7 +38,8 @@ const NEGATIONS =
 const PATTERNS: Record<LightLevel, RegExp> = {
   direct: /\b(?:full\s+sun\w*|direct\s+sun\w*|direct\s+light|full\s+light|direct)\b/i,
   bright: /\b(?:bright\w*|indirect|medium|filtered|dappled)\b/i,
-  low: /\b(?:low|shade|shady|dim|dark)\b/i,
+  low: /\b(?:low|dim)\b/i,
+  shade: /\b(?:shade|shady|shaded|dark)\b/i,
 };
 
 /** Every light level the text says the plant will accept. */
@@ -44,13 +47,13 @@ export function lightLevelsFromText(text: string | undefined): LightLevel[] {
   if (!text) return [];
   const cleaned = text.replace(NEGATIONS, ' ');
   const matched = LIGHT_LEVELS.filter((level) => PATTERNS[level].test(cleaned));
+  if (matched.length < 2) return matched;
 
-  // A range naming both extremes covers the middle: "full sun to partial shade"
-  // does not say "bright" anywhere, but such a plant plainly accepts it.
-  if (matched.includes('direct') && matched.includes('low') && !matched.includes('bright')) {
-    return LIGHT_LEVELS;
-  }
-  return matched;
+  // A range covers what it spans: "full sun to partial shade" never says bright,
+  // but a plant happy at both ends plainly accepts everything in between.
+  const first = LIGHT_LEVELS.indexOf(matched[0]);
+  const last = LIGHT_LEVELS.indexOf(matched[matched.length - 1]);
+  return LIGHT_LEVELS.slice(first, last + 1);
 }
 
 /**
@@ -90,4 +93,11 @@ export function lightHeaderIn(plants: Plant[]): string | null {
     if (entry) return entry[0];
   }
   return null;
+}
+
+/** The levels some plant in this list actually accepts, brightest first. */
+export function lightLevelsInUse(plants: Plant[]): LightLevel[] {
+  const seen = new Set<LightLevel>();
+  for (const plant of plants) for (const level of plantLightLevels(plant)) seen.add(level);
+  return LIGHT_LEVELS.filter((level) => seen.has(level));
 }

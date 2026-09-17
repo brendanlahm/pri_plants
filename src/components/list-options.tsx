@@ -6,34 +6,47 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { LIGHT_FILTER_LABELS, LIGHT_FILTERS, type LightFilter } from '@/lib/light';
-import { SORT_LABELS, type SortMode } from '@/lib/plant-library';
+import { LIGHT_LABELS, type LightFilter, type LightLevel } from '@/lib/light';
+import type { WateringFilter, WateringGroup } from '@/lib/watering-filter';
 
-const SORT_MODES = Object.keys(SORT_LABELS) as SortMode[];
+/** Shown in the field when neither filter is set; not offered as a row. */
+const NOTHING_FILTERED = 'All plants';
 
 /** Enough for about five rows; the rest scroll rather than pushing the list away. */
 const MAX_MENU_HEIGHT = 220;
 
 type ListOptionsProps = {
-  sort: SortMode;
+  watering: WateringFilter;
   light: LightFilter;
   /** What this list calls its light column, used as the section heading. */
   lightLabel: string;
-  onSortChange: (mode: SortMode) => void;
+  /** Only the frequencies and levels the list actually uses are offered. */
+  wateringGroups: WateringGroup[];
+  lightLevels: LightLevel[];
+  onWateringChange: (filter: WateringFilter) => void;
   onLightChange: (filter: LightFilter) => void;
 };
 
-/** One collapsible field holding how the list is ordered and which light it shows. */
+/** One collapsible field holding what the list shows. */
 export function ListOptions({
-  sort,
+  watering,
   light,
   lightLabel,
-  onSortChange,
+  wateringGroups,
+  lightLevels,
+  onWateringChange,
   onLightChange,
 }: ListOptionsProps) {
   const theme = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const summary = `${SORT_LABELS[sort]} · ${LIGHT_FILTER_LABELS[light]}`;
+
+  const summary =
+    [
+      watering === 'all' ? null : wateringGroups.find((group) => group.key === watering)?.label,
+      light === 'all' ? null : LIGHT_LABELS[light],
+    ]
+      .filter(Boolean)
+      .join(' · ') || NOTHING_FILTERED;
 
   return (
     <View style={styles.container}>
@@ -41,11 +54,11 @@ export function ListOptions({
         onPress={() => setIsOpen((open) => !open)}
         accessibilityRole="button"
         accessibilityState={{ expanded: isOpen }}
-        accessibilityLabel={`Sort and filter: ${summary}`}
+        accessibilityLabel={`Filter: ${summary}`}
         style={({ pressed }) => pressed && styles.pressed}>
         <ThemedView type="backgroundElement" style={styles.field}>
           <ThemedText type="small" themeColor="textSecondary">
-            Sort
+            Filter
           </ThemedText>
           <ThemedText type="small" style={styles.value} numberOfLines={1}>
             {summary}
@@ -64,25 +77,36 @@ export function ListOptions({
         <ThemedView type="backgroundElement" style={styles.menu}>
           {/* The menu stays open on a choice: there are two groups to set here. */}
           <ScrollView style={styles.menuScroll} nestedScrollEnabled>
-            <SectionHeading>Order</SectionHeading>
-            {SORT_MODES.map((mode) => (
-              <Option
-                key={mode}
-                label={SORT_LABELS[mode]}
-                selected={mode === sort}
-                onPress={() => onSortChange(mode)}
-              />
-            ))}
+            {wateringGroups.length > 1 ? (
+              <>
+                <SectionHeading>Watering</SectionHeading>
+                {wateringGroups.map((group) => (
+                  <Option
+                    key={group.key}
+                    label={group.label}
+                    count={group.count}
+                    selected={group.key === watering}
+                    // Unfiltered is the default rather than a row, so the chosen
+                    // option is what lets go of itself.
+                    onPress={() => onWateringChange(group.key === watering ? 'all' : group.key)}
+                  />
+                ))}
+              </>
+            ) : null}
 
-            <SectionHeading>{lightLabel}</SectionHeading>
-            {LIGHT_FILTERS.map((filter) => (
-              <Option
-                key={filter}
-                label={LIGHT_FILTER_LABELS[filter]}
-                selected={filter === light}
-                onPress={() => onLightChange(filter)}
-              />
-            ))}
+            {lightLevels.length > 1 ? (
+              <>
+                <SectionHeading>{lightLabel}</SectionHeading>
+                {lightLevels.map((level) => (
+                  <Option
+                    key={level}
+                    label={LIGHT_LABELS[level]}
+                    selected={level === light}
+                    onPress={() => onLightChange(level === light ? 'all' : level)}
+                  />
+                ))}
+              </>
+            ) : null}
           </ScrollView>
         </ThemedView>
       ) : null}
@@ -100,10 +124,12 @@ function SectionHeading({ children }: { children: string }) {
 
 function Option({
   label,
+  count,
   selected,
   onPress,
 }: {
   label: string;
+  count?: number;
   selected: boolean;
   onPress: () => void;
 }) {
@@ -122,14 +148,21 @@ function Option({
       <ThemedText type="small" themeColor={selected ? 'text' : 'textSecondary'}>
         {label}
       </ThemedText>
-      {selected ? (
-        <SymbolView
-          name={{ ios: 'checkmark', android: 'check', web: 'check' }}
-          size={12}
-          weight="bold"
-          tintColor={theme.accent}
-        />
-      ) : null}
+      <View style={styles.optionEnd}>
+        {count === undefined ? null : (
+          <ThemedText type="small" themeColor="textSecondary">
+            {count}
+          </ThemedText>
+        )}
+        {selected ? (
+          <SymbolView
+            name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+            size={12}
+            weight="bold"
+            tintColor={theme.accent}
+          />
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -174,5 +207,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: 40,
     paddingHorizontal: Spacing.three,
+  },
+  optionEnd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
 });
