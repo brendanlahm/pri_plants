@@ -21,6 +21,7 @@ function detailRows(plant: Plant) {
   return [
     ['Location', plant.location],
     ['Watering', plant.watering],
+    ['Fertilizing', plant.fertilizing],
     ['Light', plant.light],
     ['Acquired', plant.acquired],
     ['Notes', plant.notes],
