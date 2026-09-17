@@ -140,7 +140,9 @@ export function PlantCard({
 
         <View style={styles.headerText}>
           <ThemedText style={styles.name}>{plant.name}</ThemedText>
-          {plant.species ? (
+          {/* The header is the only place the species appears, so it waits for
+              the card to open rather than being dropped altogether. */}
+          {isOpen && plant.species ? (
             <ThemedText type="small" themeColor="textSecondary" style={styles.species}>
               {plant.species}
             </ThemedText>
