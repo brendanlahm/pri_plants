@@ -86,21 +86,27 @@ export function MonthCalendar({
                 onPress={() => onSelect(date)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${day} ${MONTH_NAMES[month.getMonth()]}${describe(events)}`}
-                style={({ pressed }) => [
-                  styles.day,
-                  isSelected && { backgroundColor: theme.accent },
-                  !isSelected && isToday && { backgroundColor: theme.backgroundSelected },
-                  pressed && styles.pressed,
-                ]}>
-                <ThemedText
-                  type="small"
+                accessibilityLabel={`${day} ${MONTH_NAMES[month.getMonth()]}${
+                  isToday ? ', today' : ''
+                }${describe(events)}`}
+                style={({ pressed }) => [styles.day, pressed && styles.pressed]}>
+                <View
                   style={[
-                    isToday && styles.todayLabel,
-                    isSelected && { color: theme.accentText },
+                    styles.dayNumber,
+                    isSelected && { backgroundColor: theme.accent },
+                    // Today keeps its ring even while another day is selected; against
+                    // the selected fill the ring switches to the contrasting colour.
+                    isToday && { borderColor: isSelected ? theme.accentText : theme.accent },
                   ]}>
-                  {day}
-                </ThemedText>
+                  <ThemedText
+                    type="small"
+                    style={[
+                      isToday && styles.todayLabel,
+                      isSelected && { color: theme.accentText },
+                    ]}>
+                    {day}
+                  </ThemedText>
+                </View>
                 <View style={styles.dots}>
                   {CARE_KINDS.map((kind) =>
                     events?.some((event) => event.kind === kind) ? (
@@ -189,10 +195,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   day: {
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.half,
     alignItems: 'center',
     gap: 3,
+  },
+  dayNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Carried by every day so the ring on today cannot shift the grid.
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   todayLabel: {
     fontWeight: 700,
